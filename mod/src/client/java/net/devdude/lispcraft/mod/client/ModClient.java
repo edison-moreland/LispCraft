@@ -1,6 +1,6 @@
 package net.devdude.lispcraft.mod.client;
 
-import net.devdude.lispcraft.runtime.ConsoleRuntime;
+import net.devdude.lispcraft.runtime.EvalTest;
 import net.fabricmc.api.ClientModInitializer;
 
 public class ModClient implements ClientModInitializer {
@@ -8,6 +8,6 @@ public class ModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
 
-        System.out.println(ConsoleRuntime.HELLO);
+        EvalTest.hello();
     }
 }
