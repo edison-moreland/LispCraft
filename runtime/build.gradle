@@ -39,24 +39,21 @@ java {
     withSourcesJar()
 }
 
-clojure {
-    builds {
-        main {
-            classpath.from = sourceSets.main.compileClasspath
-            reflection = "warn"
+clojure.builds {
+    main {
+        reflection = "warn"
 
-            aotAll()
-            compiler {
-                directLinking = true
-            }
+        aotAll()
+        compiler {
+            directLinking = true
         }
     }
 }
 
-tasks.named('compileJava') {
-    // add clojure's compiled output onto the Java compiler output
-    classpath += files(sourceSets.main.clojure.classesDirectory)
-}
+//tasks.named('compileJava') {
+//    // add clojure's compiled output onto the Java compiler output
+//    classpath += files(sourceSets.main.clojure.classesDirectory)
+//}
 
 test {
     useJUnitPlatform()

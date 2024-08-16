@@ -1,14 +1,16 @@
 (ns net.devdude.lispcraft.runtime.EvalTest
+  (:import (net.devdude.lispcraft.runtime Printer))
   (:gen-class
     :prefix "-"
-    :methods [^:static [hello [] void]
+    :methods [^:static [hello [net.devdude.lispcraft.runtime.Printer] void]
               ^:static [eval [String] String]]
-    :main false))
+    :main false)
+  )
 
 (defn -hello
   "Print hello!"
-  []
-  (println "Hello world!"))
+  [^Printer printer]
+  (.print printer "Hello world!"))
 
 (defn -eval
   "Evaluates the source string, returning the results as a string"
