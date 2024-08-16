@@ -1,8 +1,11 @@
 package net.devdude.lispcraft.mod.common.console;
 
+import io.wispforest.endec.Endec;
+import io.wispforest.endec.impl.RecordEndec;
 import io.wispforest.owo.client.screens.SyncedProperty;
 import io.wispforest.owo.util.Observable;
 import net.devdude.lispcraft.mod.Mod;
+import net.devdude.lispcraft.runtime.RuntimeEvent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.entity.player.PlayerEntity;
@@ -20,13 +23,17 @@ public class ConsoleScreenHandler extends ScreenHandler {
         this(syncId, playerInventory, null, null);
     }
 
+    public record RuntimeEventPacket(RuntimeEvent event) {
+        public static final Endec<RuntimeEventPacket> ENDEC = RecordEndec.createShared(RuntimeEventPacket.class);
+    }
+
     // Called by the server
-    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable Observable<char[][]> screen, @Nullable ConsoleBlockEntity.ClientEventHandler eventHandler) {
+    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable Observable<char[][]> screen, @Nullable RuntimeEvent.RuntimeEventHandler eventHandler) {
         super(Mod.ScreenHandlers.CONSOLE, syncId);
 
-        this.addServerboundMessage(ConsoleBlockEntity.ClientEvent.class, event -> {
+        this.addServerboundMessage(RuntimeEventPacket.class, RuntimeEventPacket.ENDEC, event -> {
             assert eventHandler != null;
-            eventHandler.handleEvent(event);
+            eventHandler.handle(event.event);
         });
 
         if (screen != null) {
@@ -40,8 +47,8 @@ public class ConsoleScreenHandler extends ScreenHandler {
     }
 
     @Environment(EnvType.CLIENT)
-    public void sendClientEvent(ConsoleBlockEntity.ClientEvent event) {
-        this.sendMessage(event);
+    public void sendRuntimeEvent(RuntimeEvent event) {
+        this.sendMessage(new RuntimeEventPacket(event));
     }
 
     @Override

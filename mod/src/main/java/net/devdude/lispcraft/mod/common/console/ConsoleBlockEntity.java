@@ -5,6 +5,7 @@ import net.devdude.lispcraft.mod.Mod;
 import net.devdude.lispcraft.mod.Network;
 import net.devdude.lispcraft.runtime.CharacterScreen;
 import net.devdude.lispcraft.runtime.ConsoleRuntime;
+import net.devdude.lispcraft.runtime.RuntimeEvent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.BlockState;
@@ -46,7 +47,6 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
         if (!world.isClient()) {
             this.runtime = new ConsoleRuntime();
             this.runtime.start(this);
-            this.runtime.sendTestEvent();
         } else {
             Network.sendPing("Pong");
         }
@@ -54,7 +54,7 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
 
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        return new ConsoleScreenHandler(syncId, playerInventory, this.screen, this::handleClientEvent);
+        return new ConsoleScreenHandler(syncId, playerInventory, this.screen, this::handle);
     }
 
     @Override
@@ -80,17 +80,9 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
         this.screen.set(screen);
     }
 
-
-    public record ClientEvent() {}
-
-    @FunctionalInterface
-    public interface ClientEventHandler {
-        void handleEvent(ClientEvent event);
-    }
-
     @Environment(EnvType.SERVER)
-    public void handleClientEvent(ClientEvent event) {
+    public void handle(RuntimeEvent event) {
         assert this.runtime != null;
-        this.runtime.sendTestEvent();
+        this.runtime.sendRuntimeEvent(event);
     }
 }

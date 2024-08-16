@@ -9,6 +9,7 @@ import net.devdude.lispcraft.mod.Network;
 import net.devdude.lispcraft.mod.client.components.CharGridComponent;
 import net.devdude.lispcraft.mod.common.console.ConsoleBlockEntity;
 import net.devdude.lispcraft.mod.common.console.ConsoleScreenHandler;
+import net.devdude.lispcraft.runtime.RuntimeEvent;
 import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
@@ -47,7 +48,7 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
         rootComponent.child(
                 Containers.verticalFlow(Sizing.content(), Sizing.content())
                         .child(new CharGridComponent(ConsoleBlockEntity.charsX, ConsoleBlockEntity.charsY, this.handler.characters::get))
-                        .child(Components.button(Text.literal("Click me!"), button -> getScreenHandler().sendClientEvent(new ConsoleBlockEntity.ClientEvent())))
+                        .child(Components.button(Text.literal("Click me!"), button -> getScreenHandler().sendRuntimeEvent(new RuntimeEvent.PrintLine("hello"))))
                         .padding(Insets.of(10))
                         .surface(Surface.DARK_PANEL)
                         .verticalAlignment(VerticalAlignment.CENTER)

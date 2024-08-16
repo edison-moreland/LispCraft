@@ -1,5 +1,6 @@
 package net.devdude.lispcraft.mod;
 
+import io.wispforest.endec.impl.ReflectiveEndecBuilder;
 import io.wispforest.owo.itemgroup.Icon;
 import io.wispforest.owo.itemgroup.OwoItemGroup;
 import io.wispforest.owo.registration.reflect.BlockEntityRegistryContainer;
@@ -9,6 +10,7 @@ import io.wispforest.owo.registration.reflect.ItemRegistryContainer;
 import net.devdude.lispcraft.mod.common.console.ConsoleBlock;
 import net.devdude.lispcraft.mod.common.console.ConsoleBlockEntity;
 import net.devdude.lispcraft.mod.common.console.ConsoleScreenHandler;
+import net.devdude.lispcraft.runtime.RuntimeEvent;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
@@ -41,6 +43,8 @@ public class Mod implements ModInitializer {
         FieldRegistrationHandler.register(ScreenHandlers.class, MOD_ID, false);
         MOD_GROUP.initialize();
         Network.initialize();
+
+        ReflectiveEndecBuilder.SHARED_INSTANCE.register(RuntimeEvent.ENDEC, RuntimeEvent.class);
     }
 
     public static class Items implements ItemRegistryContainer {

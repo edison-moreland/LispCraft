@@ -9,6 +9,8 @@ group = project.maven_group
 repositories {
     mavenCentral()
     maven { url 'https://repo.clojars.org' }
+    maven { url 'https://maven.wispforest.io' }
+
 }
 
 dependencies {
@@ -17,6 +19,8 @@ dependencies {
 
     implementation "org.clojure:clojure:${project.clojure_version}"
     testRuntimeOnly "dev.clojurephant:jovial:${project.jovial_version}"
+
+    implementation "io.wispforest:endec:${project.endec_version}"
 }
 
 def targetJavaVersion = 21
