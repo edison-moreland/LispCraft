@@ -23,10 +23,6 @@ public class ConsoleScreenHandler extends ScreenHandler {
         this(syncId, playerInventory, null, null);
     }
 
-    public record RuntimeEventPacket(RuntimeEvent event) {
-        public static final Endec<RuntimeEventPacket> ENDEC = RecordEndec.createShared(RuntimeEventPacket.class);
-    }
-
     // Called by the server
     public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable Observable<char[][]> screen, @Nullable RuntimeEvent.RuntimeEventHandler eventHandler) {
         super(Mod.ScreenHandlers.CONSOLE, syncId);
@@ -40,6 +36,8 @@ public class ConsoleScreenHandler extends ScreenHandler {
 //            Only the server passes in the screen
             characters = this.createProperty(char[][].class, screen.get());
             characters.markDirty();
+
+//            TODO: We have no way to remove an observer from here. Will the block entity just accumulate dead observers? Are they cleaned up somehow?
             screen.observe(this.characters::set);
         } else {
             characters = this.createProperty(char[][].class, new char[ConsoleBlockEntity.charsY][ConsoleBlockEntity.charsX]);
@@ -51,6 +49,11 @@ public class ConsoleScreenHandler extends ScreenHandler {
         this.sendMessage(new RuntimeEventPacket(event));
     }
 
+    @Environment(EnvType.CLIENT)
+    public void sendKeyPressedEvent(int keyCode, int modifiers) {
+        this.sendRuntimeEvent(new RuntimeEvent.KeyPressed(keyCode, modifiers));
+    }
+
     @Override
     public ItemStack quickMove(PlayerEntity player, int slot) {
         return null;
@@ -59,5 +62,9 @@ public class ConsoleScreenHandler extends ScreenHandler {
     @Override
     public boolean canUse(PlayerEntity player) {
         return true;
+    }
+
+    public record RuntimeEventPacket(RuntimeEvent event) {
+        public static final Endec<RuntimeEventPacket> ENDEC = RecordEndec.createShared(RuntimeEventPacket.class);
     }
 }

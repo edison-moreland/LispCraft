@@ -1,7 +1,6 @@
 (ns net.devdude.lispcraft.runtime.ConsoleRuntime
   (:import (java.util.concurrent LinkedBlockingQueue TimeUnit)
-           (net.devdude.lispcraft.runtime CharacterScreen RuntimeEvent RuntimeEvent$ButtonPush RuntimeEvent$PrintLine)
-           )
+           (net.devdude.lispcraft.runtime CharacterScreen RuntimeEvent RuntimeEvent$KeyPressed RuntimeEvent$PrintLine))
   (:gen-class
     :state state
     :init init
@@ -12,7 +11,7 @@
 
 (defn -init []
   [[] (atom {:event-channel (new LinkedBlockingQueue)
-             :event-count 0})])
+             :event-count   0})])
 
 (defn -set
   [this key value]
@@ -47,24 +46,28 @@
   [this]
   (.take (-get-event-channel this)))
 
-(defn -start-event-loop
-  [this ^CharacterScreen screen]
-  (while true
-    (let* [event (-next-event this)]
-      (when (instance? RuntimeEvent$PrintLine event)
-        (let [event (cast RuntimeEvent$PrintLine event)
-              event-count (-swap-event-count this inc)]
-          (.print screen 0 event-count (format "%s" (.text event))))))))
+(defmulti -event-handler class)
+(defmethod -event-handler RuntimeEvent$PrintLine
+  [event] (fn [this screen]
+            (.print screen 0 (-swap-event-count this inc) (format "%s" (.text event)))))
+
+(defmethod -event-handler RuntimeEvent$KeyPressed
+  [event] (fn [this screen]
+            (.print screen 0 (-swap-event-count this inc) (format "%s" (.keyCode event)))))
+
+(defn -do-event-loop
+  [this screen]
+  (while true ((-event-handler (-next-event this)) this screen)))
 
 (defn -start
   "Entrypoint for the console block's runtime"
   [this ^CharacterScreen screen]
   (Thread/startVirtualThread
     #(try
-        (-start-event-loop this screen)
-        (catch Exception e
-          (.print screen 0 0 "An error happened!")
-          (.print screen 0 1 (.getMessage e))))))
+       (-do-event-loop this screen)
+       (catch Exception e
+         (.print screen 0 0 "An error happened!")
+         (.print screen 0 1 (.getMessage e))))))
 
 (defn -sendRuntimeEvent
   [this ^RuntimeEvent event]

@@ -5,7 +5,6 @@ import io.wispforest.owo.ui.component.Components;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
-import net.devdude.lispcraft.mod.Network;
 import net.devdude.lispcraft.mod.client.components.CharGridComponent;
 import net.devdude.lispcraft.mod.common.console.ConsoleBlockEntity;
 import net.devdude.lispcraft.mod.common.console.ConsoleScreenHandler;
@@ -54,6 +53,16 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
                         .verticalAlignment(VerticalAlignment.CENTER)
                         .horizontalAlignment(HorizontalAlignment.CENTER)
         );
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!super.keyPressed(keyCode, scanCode, modifiers)) {
+            getScreenHandler().sendKeyPressedEvent(keyCode, scanCode);
+        }
+        ;
+
+        return true;
     }
 
 }
