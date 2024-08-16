@@ -47,7 +47,7 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
         rootComponent.child(
                 Containers.verticalFlow(Sizing.content(), Sizing.content())
                         .child(new CharGridComponent(ConsoleBlockEntity.charsX, ConsoleBlockEntity.charsY, this.handler.characters::get))
-                        .child(Components.button(Text.literal("Click me!"), button -> Network.sendPing("pong")))
+                        .child(Components.button(Text.literal("Click me!"), button -> getScreenHandler().sendClientEvent(new ConsoleBlockEntity.ClientEvent())))
                         .padding(Insets.of(10))
                         .surface(Surface.DARK_PANEL)
                         .verticalAlignment(VerticalAlignment.CENTER)

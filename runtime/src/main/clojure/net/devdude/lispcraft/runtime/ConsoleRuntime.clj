@@ -9,17 +9,30 @@
               [sendTestEvent [] void]]
     :main false))
 
-
 (defn -init []
-  [[] (atom {:event-channel (new LinkedBlockingQueue)})])
+  [[] (atom {:event-channel (new LinkedBlockingQueue)
+             :event-count 0})])
 
 (defn -set
   [this key value]
-  (swap! (.state this) into {key value}))
+  (swap! (.state this) into {key value})
+  value)
 
 (defn -get
   [this key]
   (@(.state this) key))
+
+(defn -swap
+  [this key f]
+  (-set this key (f (-get this key))))
+
+(defn -get-event-count
+  [this]
+  (-get this :event-count))
+
+(defn -swap-event-count
+  [this f]
+  (-swap this :event-count f))
 
 (defn -get-event-channel
   [this]
@@ -33,15 +46,23 @@
   [this]
   (.take (-get-event-channel this)))
 
+(defn -start-event-loop
+  [this screen]
+  (while true
+    (let [event (-next-event this)]
+      (when (= event :test)
+        (let [event-count (-swap-event-count this inc)]
+          (.print screen 0 event-count (format "%d events happened")))))))
+
 (defn -start
   "Entrypoint for the console block's runtime"
   [this ^CharacterScreen screen]
-  (Thread/startVirtualThread #(while true
-                                (let [event (-next-event this)]
-                                  (when (= event :test)
-                                    (.print screen 0 0 "Event happened"))
-                                  ))))
-
+  (Thread/startVirtualThread
+    #(try
+        (-start-event-loop this screen)
+        (catch Exception e
+          (.print screen 0 0 "An error happened!")
+          (.print screen 0 1 (.getMessage e))))))
 
 (defn -sendTestEvent
   [this]

@@ -54,13 +54,7 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
 
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        assert world != null;
-        if (world.isClient()) {
-            Mod.LOGGER.info("Client create menu");
-        } else {
-            Mod.LOGGER.info("Server create menu");
-        }
-        return new ConsoleScreenHandler(syncId, playerInventory, this.screen);
+        return new ConsoleScreenHandler(syncId, playerInventory, this.screen, this::handleClientEvent);
     }
 
     @Override
@@ -76,7 +70,7 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
             return;
         }
 
-        var screen = this.screen.get();
+        var screen = this.screen.get().clone();
         var maxX = Integer.min(charsX, atX + text.length());
         for (int x = atX; x < maxX; x++) {
             var i = x - atX;
@@ -84,5 +78,19 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
             screen[atY][x] = text.charAt(i);
         }
         this.screen.set(screen);
+    }
+
+
+    public record ClientEvent() {}
+
+    @FunctionalInterface
+    public interface ClientEventHandler {
+        void handleEvent(ClientEvent event);
+    }
+
+    @Environment(EnvType.SERVER)
+    public void handleClientEvent(ClientEvent event) {
+        assert this.runtime != null;
+        this.runtime.sendTestEvent();
     }
 }
