@@ -3,8 +3,8 @@ package net.devdude.lispcraft.mod.common.console;
 import io.wispforest.endec.Endec;
 import io.wispforest.endec.impl.RecordEndec;
 import io.wispforest.owo.client.screens.SyncedProperty;
-import io.wispforest.owo.util.Observable;
 import net.devdude.lispcraft.mod.Mod;
+import net.devdude.lispcraft.runtime.Console;
 import net.devdude.lispcraft.runtime.RuntimeEvent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -24,7 +24,7 @@ public class ConsoleScreenHandler extends ScreenHandler {
     }
 
     // Called by the server
-    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable Observable<char[][]> screen, @Nullable RuntimeEvent.RuntimeEventHandler eventHandler) {
+    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable Console console, @Nullable RuntimeEvent.RuntimeEventHandler eventHandler) {
         super(Mod.ScreenHandlers.CONSOLE, syncId);
 
         this.addServerboundMessage(RuntimeEventPacket.class, RuntimeEventPacket.ENDEC, event -> {
@@ -32,15 +32,15 @@ public class ConsoleScreenHandler extends ScreenHandler {
             eventHandler.handle(event.event);
         });
 
-        if (screen != null) {
+        if (console != null) {
 //            Only the server passes in the screen
-            characters = this.createProperty(char[][].class, screen.get());
+            characters = this.createProperty(char[][].class, console.getScreen());
             characters.markDirty();
 
 //            TODO: We have no way to remove an observer from here. Will the block entity just accumulate dead observers? Are they cleaned up somehow?
-            screen.observe(this.characters::set);
+            console.observe(this.characters::set);
         } else {
-            characters = this.createProperty(char[][].class, new char[ConsoleBlockEntity.charsY][ConsoleBlockEntity.charsX]);
+            characters = this.createProperty(char[][].class, new char[20][40]);
         }
     }
 

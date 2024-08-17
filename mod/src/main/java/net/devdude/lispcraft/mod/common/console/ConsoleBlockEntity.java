@@ -1,9 +1,8 @@
 package net.devdude.lispcraft.mod.common.console;
 
-import io.wispforest.owo.util.Observable;
 import net.devdude.lispcraft.mod.Mod;
 import net.devdude.lispcraft.mod.Network;
-import net.devdude.lispcraft.runtime.CharacterScreen;
+import net.devdude.lispcraft.runtime.Console;
 import net.devdude.lispcraft.runtime.ConsoleRuntime;
 import net.devdude.lispcraft.runtime.RuntimeEvent;
 import net.fabricmc.api.EnvType;
@@ -19,26 +18,27 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
-public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandlerFactory, CharacterScreen {
-    public static int charsX = 40;
-    public static int charsY = 20;
+public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
     @Environment(EnvType.SERVER)
     @Nullable ConsoleRuntime runtime;
-    Observable<char[][]> screen = Observable.of(blankScreen());
+
+    Console console = new Console(new Console.Size(40, 20));
+
+//    Observable<char[][]> screen = Observable.of(blankScreen());
 
     public ConsoleBlockEntity(BlockPos pos, BlockState state) {
         super(Mod.BlockEntities.CONSOLE, pos, state);
     }
 
-    public static char[][] blankScreen() {
-        var screen = new char[charsY][charsX];
-        for (int i = 0; i < charsY; i++) {
-            for (int j = 0; j < charsX; j++) {
-                screen[i][j] = ' ';
-            }
-        }
-        return screen;
-    }
+//    public static char[][] blankScreen() {
+//        var screen = new char[charsY][charsX];
+//        for (int i = 0; i < charsY; i++) {
+//            for (int j = 0; j < charsX; j++) {
+//                screen[i][j] = ' ';
+//            }
+//        }
+//        return screen;
+//    }
 
     @Override
     public void setWorld(World world) {
@@ -46,7 +46,7 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
 
         if (!world.isClient()) {
             this.runtime = new ConsoleRuntime();
-            this.runtime.start(this);
+            this.runtime.start(this.console);
         } else {
             Network.sendPing("Pong");
         }
@@ -54,7 +54,7 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
 
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        return new ConsoleScreenHandler(syncId, playerInventory, this.screen, this::handle);
+        return new ConsoleScreenHandler(syncId, playerInventory, this.console, this::handle);
     }
 
     @Override
@@ -63,22 +63,22 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
     }
 
 
-    @Environment(EnvType.SERVER)
-    public void print(int atX, int atY, String text) {
-        System.out.println(atX + " " + atY + " " + text);
-        if (atY >= charsY) {
-            return;
-        }
-
-        var screen = this.screen.get().clone();
-        var maxX = Integer.min(charsX, atX + text.length());
-        for (int x = atX; x < maxX; x++) {
-            var i = x - atX;
-
-            screen[atY][x] = text.charAt(i);
-        }
-        this.screen.set(screen);
-    }
+//    @Environment(EnvType.SERVER)
+//    public void print(int atX, int atY, String text) {
+//        System.out.println(atX + " " + atY + " " + text);
+//        if (atY >= charsY) {
+//            return;
+//        }
+//
+//        var screen = this.screen.get().clone();
+//        var maxX = Integer.min(charsX, atX + text.length());
+//        for (int x = atX; x < maxX; x++) {
+//            var i = x - atX;
+//
+//            screen[atY][x] = text.charAt(i);
+//        }
+//        this.screen.set(screen);
+//    }
 
     @Environment(EnvType.SERVER)
     public void handle(RuntimeEvent event) {
