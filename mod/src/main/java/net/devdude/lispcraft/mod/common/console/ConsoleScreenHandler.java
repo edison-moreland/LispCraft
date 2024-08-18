@@ -15,6 +15,7 @@ import net.minecraft.screen.ScreenHandler;
 import org.jetbrains.annotations.Nullable;
 
 public class ConsoleScreenHandler extends ScreenHandler {
+//    TODO: We should sync more console state to the screen. EX: Cursor location/size
     public SyncedProperty<char[][]> characters;
 
 
@@ -37,7 +38,8 @@ public class ConsoleScreenHandler extends ScreenHandler {
             characters = this.createProperty(char[][].class, console.getScreen());
             characters.markDirty();
 
-//            TODO: We have no way to remove an observer from here. Will the block entity just accumulate dead observers? Are they cleaned up somehow?
+//            TODO: We have no way to remove an observer from here.
+//                  Will the block entity just accumulate dead observers? Are they cleaned up somehow?
             console.observe(this.characters::set);
         } else {
             characters = this.createProperty(char[][].class, new char[20][40]);
@@ -45,13 +47,13 @@ public class ConsoleScreenHandler extends ScreenHandler {
     }
 
     @Environment(EnvType.CLIENT)
-    public void sendRuntimeEvent(RuntimeEvent event) {
-        this.sendMessage(new RuntimeEventPacket(event));
+    public void sendCharacters(char[] characters) {
+        this.sendMessage(new RuntimeEventPacket(new RuntimeEvent.Print(characters)));
     }
 
     @Environment(EnvType.CLIENT)
-    public void sendKeyPressedEvent(int keyCode, int modifiers) {
-        this.sendRuntimeEvent(new RuntimeEvent.KeyPressed(keyCode, modifiers));
+    public void sendCharacter(char character) {
+        sendCharacters(new char[] {character});
     }
 
     @Override

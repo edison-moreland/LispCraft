@@ -24,27 +24,16 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
 
     Console console = new Console(new Console.Size(40, 20));
 
-//    Observable<char[][]> screen = Observable.of(blankScreen());
-
     public ConsoleBlockEntity(BlockPos pos, BlockState state) {
         super(Mod.BlockEntities.CONSOLE, pos, state);
     }
-
-//    public static char[][] blankScreen() {
-//        var screen = new char[charsY][charsX];
-//        for (int i = 0; i < charsY; i++) {
-//            for (int j = 0; j < charsX; j++) {
-//                screen[i][j] = ' ';
-//            }
-//        }
-//        return screen;
-//    }
 
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
 
         if (!world.isClient()) {
+            assert this.console != null;
             this.runtime = new ConsoleRuntime();
             this.runtime.start(this.console);
         } else {
@@ -61,24 +50,6 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
     public Text getDisplayName() {
         return Text.translatable(getCachedState().getBlock().getTranslationKey());
     }
-
-
-//    @Environment(EnvType.SERVER)
-//    public void print(int atX, int atY, String text) {
-//        System.out.println(atX + " " + atY + " " + text);
-//        if (atY >= charsY) {
-//            return;
-//        }
-//
-//        var screen = this.screen.get().clone();
-//        var maxX = Integer.min(charsX, atX + text.length());
-//        for (int x = atX; x < maxX; x++) {
-//            var i = x - atX;
-//
-//            screen[atY][x] = text.charAt(i);
-//        }
-//        this.screen.set(screen);
-//    }
 
     @Environment(EnvType.SERVER)
     public void handle(RuntimeEvent event) {

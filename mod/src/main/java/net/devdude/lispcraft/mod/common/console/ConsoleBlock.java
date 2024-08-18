@@ -43,6 +43,4 @@ public class ConsoleBlock extends BlockWithEntity {
         }
         return ActionResult.SUCCESS;
     }
-
-
 }

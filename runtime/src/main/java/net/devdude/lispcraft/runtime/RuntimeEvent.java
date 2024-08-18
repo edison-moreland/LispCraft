@@ -10,9 +10,7 @@ import java.util.Map;
 public interface RuntimeEvent {
     //    TODO: Auto most of this
     Map<String, Endec<? extends RuntimeEvent>> REGISTRY = Map.of(
-//            "ButtonPush", ButtonPush.ENDEC,
-            "PrintLine", PrintLine.ENDEC,
-            "KeyPressed", KeyPressed.ENDEC
+            "Print", Print.ENDEC
     );
     Endec<RuntimeEvent> ENDEC = Endec.dispatched(REGISTRY::get, RuntimeEvent::id, Endec.STRING);
 
@@ -23,30 +21,12 @@ public interface RuntimeEvent {
         void handle(RuntimeEvent event);
     }
 
-//    record ButtonPush() implements RuntimeEvent {
-//        public static final Endec<ButtonPush> ENDEC = ReflectiveEndecBuilder.SHARED_INSTANCE.get(ButtonPush.class);
-//
-//        @Override
-//        public String id() {
-//            return "ButtonPush";
-//        }
-//    }
-
-    record PrintLine(String text) implements RuntimeEvent {
-        public static final Endec<PrintLine> ENDEC = ReflectiveEndecBuilder.SHARED_INSTANCE.get(PrintLine.class);
+    record Print(char[] text) implements RuntimeEvent {
+        public static final Endec<Print> ENDEC = ReflectiveEndecBuilder.SHARED_INSTANCE.get(Print.class);
 
         @Override
         public String id() {
-            return "PrintLine";
-        }
-    }
-
-    record KeyPressed(int keyCode, int modifiers) implements RuntimeEvent {
-        public static final Endec<KeyPressed> ENDEC = ReflectiveEndecBuilder.SHARED_INSTANCE.get(KeyPressed.class);
-
-        @Override
-        public String id() {
-            return "KeyPressed";
+            return "Print";
         }
     }
 }

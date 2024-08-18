@@ -1,6 +1,6 @@
 (ns net.devdude.lispcraft.runtime.ConsoleRuntime
   (:import (java.util.concurrent LinkedBlockingQueue TimeUnit)
-           (net.devdude.lispcraft.runtime Console RuntimeEvent RuntimeEvent$KeyPressed RuntimeEvent$PrintLine))
+           (net.devdude.lispcraft.runtime Console RuntimeEvent RuntimeEvent$Print))
   (:gen-class
     :state state
     :init init
@@ -47,26 +47,27 @@
   (.take (-get-event-channel this)))
 
 (defmulti -event-handler class)
-(defmethod -event-handler RuntimeEvent$PrintLine
-  [event] (fn [this ^Console console]
-            (.print console (format "%s" (.text event)))))
 
-(defmethod -event-handler RuntimeEvent$KeyPressed
+(defmethod -event-handler RuntimeEvent$Print
   [event] (fn [this ^Console console]
-            (.print console (format "%s" (char (.keyCode event))))))
+            (.print console (.text event))
+            (.flush console)))
 
 (defn -do-event-loop
   [this console]
-  (while true ((-event-handler (-next-event this)) this console)))
+  (while true
+    ((-event-handler (-next-event this)) this console)))
 
 (defn -start
   "Entrypoint for the console block's runtime"
   [this ^Console console]
+  (assert (not (nil? console)))
   (Thread/startVirtualThread
     #(try
        (-do-event-loop this console)
        (catch Exception e
-         (.print console (str (.getMessage e)))))))
+         (.print console (str (.getMessage e)))
+         (.flush console)))))
 
 (defn -sendRuntimeEvent
   [this ^RuntimeEvent event]

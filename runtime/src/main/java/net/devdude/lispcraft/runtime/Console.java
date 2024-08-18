@@ -19,6 +19,8 @@ public class Console {
         this.buffer = new char[size.height][size.width];
         this.cursor = new Location(0, 0);
 
+//        TODO: We fill the buffer with spaces because a null character is rendered as a box
+//              Since we control text rendering, we should just not render null characters
         for (int y = 0; y < size.height; y++) {
             for (int x = 0; x < size.width; x++) {
                 this.buffer[y][x] = ' ';
@@ -74,7 +76,43 @@ public class Console {
         }
     }
 
+    public void backspace() {
+//        If cursor is at the start of a line, we need to move up
+        if (cursor.x == 0) {
+            if (cursor.y == 0) {
+                return; // At the top of the screen
+            }
+
+            var y = cursor.y - 1;
+            for (var x = size.width -1; x >= 0; x--) {
+                if (buffer[y][x] != ' ' || x == 0) {
+                    setCursor(x, y);
+                    return;
+                }
+            }
+        }
+
+//        If not, we can do a regular backspace
+        moveCursor(-1, 0);
+        buffer[cursor.y][cursor.x] = ' ';
+    }
+
+    public void handleControl(char c) {
+        switch (c) {
+            case ANSI.LF:
+                newLine();
+                break;
+            case ANSI.BS:
+                backspace();
+                break;
+        }
+    }
+
     public void print(char c) {
+        if (ANSI.isControlCharacter(c)) {
+            handleControl(c);
+            return;
+        }
         buffer[cursor.y][cursor.x] = c;
 
         if (cursor.x + 1 >= size.width) {
@@ -86,15 +124,8 @@ public class Console {
 
     public void print(char[] text) {
         for (char character : text) {
-            if (character == '\n') {
-                newLine();
-                continue;
-            }
-
             print(character);
         }
-
-        this.flush();
     }
 
     public void print(String text) {
