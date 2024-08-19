@@ -36,27 +36,31 @@ public class ConsoleScreenHandler extends ScreenHandler {
         cursor = this.createProperty(Console.Location.class, new Console.Location(0, 0));
 
         if (console != null) {
-//            Only the server passes in the screen
+            // Only the server passes in the screen
             this.buffer.set(console.getScreen());
 
-//            TODO: We have no way to remove an observer from here.
-//                  Will the block entity just accumulate dead observers? Are they cleaned up somehow?
+            // TODO: We have no way to remove an observer from here.
+            //       Will the block entity just accumulate dead observers? Are they cleaned up somehow?
             console.onChange(((buffer, cursor) -> {
                 this.buffer.set(buffer);
                 this.cursor.set(cursor);
             }));
-        } else {
         }
     }
 
     @Environment(EnvType.CLIENT)
-    public void writeBytes(byte[] bytes) {
+    public void write(char character) {
+        write(new byte[]{(byte) character});
+    }
+
+    @Environment(EnvType.CLIENT)
+    public void write(byte[] bytes) {
         this.sendMessage(new RuntimeEventPacket(new ConsoleEvent.Write(bytes)));
     }
 
     @Environment(EnvType.CLIENT)
-    public void writeCharacter(char character) {
-        this.sendMessage(new RuntimeEventPacket(new ConsoleEvent.Write(new byte[]{(byte) character})));
+    public void write(int character) {
+        write(new byte[]{(byte) character});
     }
 
     @Override

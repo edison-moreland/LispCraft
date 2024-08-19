@@ -18,8 +18,8 @@ public class Console extends OutputStream {
         this.buffer = new char[size.height][size.width];
         this.cursor = new Location(0, 0);
 
-//        TODO: We fill the buffer with spaces because a null character is rendered as a box
-//              Since we control text rendering, we should just not render null characters
+        // TODO: We fill the buffer with spaces because a null character is rendered as a box
+        //       Since we control text rendering, we should just not render null characters
         for (int y = 0; y < size.height; y++) {
             for (int x = 0; x < size.width; x++) {
                 this.buffer[y][x] = ' ';
@@ -38,7 +38,11 @@ public class Console extends OutputStream {
 
     @Override
     public void write(int c) {
-        print((char) c);
+        if (ANSI.isControlCharacter(c)) {
+            handleControl(c);
+        } else {
+            print((char) c);
+        }
     }
 
     @Override
@@ -51,10 +55,6 @@ public class Console extends OutputStream {
     }
 
     private void print(char c) {
-        if (ANSI.isControlCharacter(c)) {
-            handleControl(c);
-            return;
-        }
         buffer[cursor.y][cursor.x] = c;
 
         if (cursor.x + 1 >= size.width) {
@@ -64,7 +64,7 @@ public class Console extends OutputStream {
         }
     }
 
-    private void handleControl(char c) {
+    private void handleControl(int c) {
         switch (c) {
             case ANSI.LF:
                 newLine();
@@ -72,6 +72,20 @@ public class Console extends OutputStream {
             case ANSI.BS:
                 backspace();
                 break;
+            case ANSI.TAB:
+                tab();
+                break;
+            case ANSI.CR:
+                moveCursor(0, cursor.y);
+                break;
+        }
+    }
+
+    private void tab() {
+        // Move the cursor to the next multiple of 8
+        var x = (8 - cursor.x % 8);
+        for (int i = 0; i < x; i++) {
+            print(' ');
         }
     }
 
@@ -84,6 +98,7 @@ public class Console extends OutputStream {
         }
     }
 
+
     private void backspace() {
         if (cursor.x == 0) {
             if (cursor.y == 0) {
@@ -91,26 +106,9 @@ public class Console extends OutputStream {
             }
 
             // The cursor is at the start of a line, we need to put it behind any text on the line above
-            var y = cursor.y - 1;
-
-            // Going backwards, find the first column without text and put the cursor to it's right
-            // - If there is text in the last column, put the cursor on the last column
-            // - If the line is empty, put the cursor on the first column
-            found:
-            {
-                for (var x = size.width - 1; x >= 0; x--) {
-                    if (buffer[y][x] != ' ') {
-//                    This is the last column with text in it
-                        setCursor(Integer.min(x + 1, size.width - 1), y);
-                        break found;
-                    }
-                }
-
-//                This line is empty
-                setCursor(0, y);
-            }
+            setCursorBehindText(cursor.y - 1);
         } else {
-//            The cursor is somewhere in the middle of a line
+            // The cursor is somewhere in the middle of a line
             moveCursor(-1, 0);
         }
 
@@ -129,6 +127,22 @@ public class Console extends OutputStream {
             }
         }
         moveCursor(0, -by);
+    }
+
+    private void setCursorBehindText(int y) {
+        // Going backwards, find the first column without text and put the cursor to it's right
+        // - If there is text in the last column, put the cursor on the last column
+        // - If the line is empty, put the cursor on the first column
+        for (var x = size.width - 1; x >= 0; x--) {
+            if (buffer[y][x] != ' ') {
+                // This is the last column with text in it
+                setCursor(Integer.min(x + 1, size.width - 1), y);
+                return;
+            }
+        }
+
+        // This line is empty
+        setCursor(0, y);
     }
 
     private void moveCursor(int x, int y) {
