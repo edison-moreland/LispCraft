@@ -5,7 +5,7 @@ import io.wispforest.endec.impl.RecordEndec;
 import io.wispforest.owo.client.screens.SyncedProperty;
 import net.devdude.lispcraft.mod.Mod;
 import net.devdude.lispcraft.runtime.Console;
-import net.devdude.lispcraft.runtime.RuntimeEvent;
+import net.devdude.lispcraft.runtime.ConsoleEvent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.entity.player.PlayerEntity;
@@ -15,9 +15,8 @@ import net.minecraft.screen.ScreenHandler;
 import org.jetbrains.annotations.Nullable;
 
 public class ConsoleScreenHandler extends ScreenHandler {
-//    TODO: We should sync more console state to the screen. EX: Cursor location/size
-    public SyncedProperty<char[][]> characters;
-
+    public SyncedProperty<char[][]> buffer;
+    public SyncedProperty<Console.Location> cursor;
 
     // Called by the client
     public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory) {
@@ -25,7 +24,7 @@ public class ConsoleScreenHandler extends ScreenHandler {
     }
 
     // Called by the server
-    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable Console console, @Nullable RuntimeEvent.RuntimeEventHandler eventHandler) {
+    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable Console console, @Nullable ConsoleEvent.RuntimeEventHandler eventHandler) {
         super(Mod.ScreenHandlers.CONSOLE, syncId);
 
         this.addServerboundMessage(RuntimeEventPacket.class, RuntimeEventPacket.ENDEC, event -> {
@@ -33,27 +32,31 @@ public class ConsoleScreenHandler extends ScreenHandler {
             eventHandler.handle(event.event);
         });
 
+        buffer = this.createProperty(char[][].class, new char[20][40]);
+        cursor = this.createProperty(Console.Location.class, new Console.Location(0, 0));
+
         if (console != null) {
 //            Only the server passes in the screen
-            characters = this.createProperty(char[][].class, console.getScreen());
-            characters.markDirty();
+            this.buffer.set(console.getScreen());
 
 //            TODO: We have no way to remove an observer from here.
 //                  Will the block entity just accumulate dead observers? Are they cleaned up somehow?
-            console.observe(this.characters::set);
+            console.onChange(((buffer, cursor) -> {
+                this.buffer.set(buffer);
+                this.cursor.set(cursor);
+            }));
         } else {
-            characters = this.createProperty(char[][].class, new char[20][40]);
         }
     }
 
     @Environment(EnvType.CLIENT)
-    public void sendCharacters(char[] characters) {
-        this.sendMessage(new RuntimeEventPacket(new RuntimeEvent.Print(characters)));
+    public void writeBytes(byte[] bytes) {
+        this.sendMessage(new RuntimeEventPacket(new ConsoleEvent.Write(bytes)));
     }
 
     @Environment(EnvType.CLIENT)
-    public void sendCharacter(char character) {
-        sendCharacters(new char[] {character});
+    public void writeCharacter(char character) {
+        this.sendMessage(new RuntimeEventPacket(new ConsoleEvent.Write(new byte[]{(byte) character})));
     }
 
     @Override
@@ -66,7 +69,7 @@ public class ConsoleScreenHandler extends ScreenHandler {
         return true;
     }
 
-    public record RuntimeEventPacket(RuntimeEvent event) {
+    public record RuntimeEventPacket(ConsoleEvent event) {
         public static final Endec<RuntimeEventPacket> ENDEC = RecordEndec.createShared(RuntimeEventPacket.class);
     }
 }

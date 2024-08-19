@@ -24,13 +24,13 @@ public class ConsoleBlock extends BlockWithEntity {
     }
 
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-        return new ConsoleBlockEntity(pos, state);
+    public BlockRenderType getRenderType(BlockState state) {
+        return BlockRenderType.MODEL;
     }
 
     @Override
-    public BlockRenderType getRenderType(BlockState state) {
-        return BlockRenderType.MODEL;
+    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+        return new ConsoleBlockEntity(pos, state);
     }
 
     @Override

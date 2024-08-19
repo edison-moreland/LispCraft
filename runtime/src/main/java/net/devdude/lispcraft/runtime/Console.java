@@ -1,13 +1,12 @@
 package net.devdude.lispcraft.runtime;
 
-
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
-public class Console {
+public class Console extends OutputStream {
     public final Size size;
-    protected final List<Consumer<char[][]>> observers;
+    protected final List<ConsoleStateConsumer> observers;
 
     private char[][] buffer;
     private Location cursor;
@@ -28,87 +27,30 @@ public class Console {
         }
     }
 
-    //    TODO: Observe logic is a hold over and probably not the best solution
-    public void observe(Consumer<char[][]> observer) {
+    //    TODO: onChange logic is a hold over and probably not the best solution
+    public void onChange(ConsoleStateConsumer observer) {
         this.observers.add(observer);
-    }
-
-    public void flush() {
-        var chars = this.buffer.clone();
-        for (var observer : this.observers) {
-            observer.accept(chars);
-        }
     }
 
     public char[][] getScreen() {
         return this.buffer.clone();
     }
 
-    public void moveCursor(int x, int y) {
-        setCursor(cursor.x + x, cursor.y + y);
+    @Override
+    public void write(int c) {
+        print((char) c);
     }
 
-    public void setCursor(int x, int y) {
-        assert x >= 0 && x < size.width && y >= 0 && y < size.height;
-        this.cursor = new Location(x, y);
-    }
-
-    public void scroll(int by) {
-        for (var y = 0; y < size.height; y++) {
-            if (y < size.height - by) {
-                buffer[y] = buffer[y + by];
-            } else {
-                buffer[y] = new char[size.width];
-                for (var x = 0; x < size.width; x++) {
-                    buffer[y][x] = ' ';
-                }
-            }
-        }
-        moveCursor(0, -by);
-    }
-
-    public void newLine() {
-        if (cursor.y + 1 >= size.height) {
-            scroll(1);
-            setCursor(0, size.height - 1);
-        } else {
-            setCursor(0, cursor.y + 1);
+    @Override
+    public void flush() {
+        var buffer = this.buffer.clone();
+        var cursor = this.cursor;
+        for (var observer : this.observers) {
+            observer.consoleStateUpdate(buffer, cursor);
         }
     }
 
-    public void backspace() {
-//        If cursor is at the start of a line, we need to move up
-        if (cursor.x == 0) {
-            if (cursor.y == 0) {
-                return; // At the top of the screen
-            }
-
-            var y = cursor.y - 1;
-            for (var x = size.width -1; x >= 0; x--) {
-                if (buffer[y][x] != ' ' || x == 0) {
-                    setCursor(x, y);
-                    return;
-                }
-            }
-        }
-
-//        If not, we can do a regular backspace
-        moveCursor(-1, 0);
-        buffer[cursor.y][cursor.x] = ' ';
-    }
-
-    public void handleControl(char c) {
-        switch (c) {
-            case ANSI.LF:
-                newLine();
-                break;
-            case ANSI.BS:
-                backspace();
-                break;
-        }
-    }
-
-    public void print(char c) {
+    private void print(char c) {
         if (ANSI.isControlCharacter(c)) {
             handleControl(c);
             return;
@@ -122,14 +64,85 @@ public class Console {
         }
     }
 
-    public void print(char[] text) {
-        for (char character : text) {
-            print(character);
+    private void handleControl(char c) {
+        switch (c) {
+            case ANSI.LF:
+                newLine();
+                break;
+            case ANSI.BS:
+                backspace();
+                break;
         }
     }
 
-    public void print(String text) {
-        print(text.toCharArray());
+    private void newLine() {
+        if (cursor.y + 1 >= size.height) {
+            scroll(1);
+            setCursor(0, size.height - 1);
+        } else {
+            setCursor(0, cursor.y + 1);
+        }
+    }
+
+    private void backspace() {
+        if (cursor.x == 0) {
+            if (cursor.y == 0) {
+                return; // At the top of the screen, nothing to do
+            }
+
+            // The cursor is at the start of a line, we need to put it behind any text on the line above
+            var y = cursor.y - 1;
+
+            // Going backwards, find the first column without text and put the cursor to it's right
+            // - If there is text in the last column, put the cursor on the last column
+            // - If the line is empty, put the cursor on the first column
+            found:
+            {
+                for (var x = size.width - 1; x >= 0; x--) {
+                    if (buffer[y][x] != ' ') {
+//                    This is the last column with text in it
+                        setCursor(Integer.min(x + 1, size.width - 1), y);
+                        break found;
+                    }
+                }
+
+//                This line is empty
+                setCursor(0, y);
+            }
+        } else {
+//            The cursor is somewhere in the middle of a line
+            moveCursor(-1, 0);
+        }
+
+        buffer[cursor.y][cursor.x] = ' ';
+    }
+
+    private void scroll(int by) {
+        for (var y = 0; y < size.height; y++) {
+            if (y < size.height - by) {
+                buffer[y] = buffer[y + by];
+            } else {
+                buffer[y] = new char[size.width];
+                for (var x = 0; x < size.width; x++) {
+                    buffer[y][x] = ' ';
+                }
+            }
+        }
+        moveCursor(0, -by);
+    }
+
+    private void moveCursor(int x, int y) {
+        setCursor(cursor.x + x, cursor.y + y);
+    }
+
+    private void setCursor(int x, int y) {
+        assert x >= 0 && x < size.width && y >= 0 && y < size.height;
+        this.cursor = new Location(x, y);
+    }
+
+    @FunctionalInterface
+    public interface ConsoleStateConsumer {
+        void consoleStateUpdate(char[][] buffer, Location cursor);
     }
 
     public record Size(int width, int height) {

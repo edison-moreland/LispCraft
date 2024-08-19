@@ -1,12 +1,13 @@
 (ns net.devdude.lispcraft.runtime.ConsoleRuntime
-  (:import (java.util.concurrent LinkedBlockingQueue TimeUnit)
-           (net.devdude.lispcraft.runtime Console RuntimeEvent RuntimeEvent$Print))
+  (:import (java.io OutputStream)
+           (java.util.concurrent LinkedBlockingQueue TimeUnit)
+           (net.devdude.lispcraft.runtime ConsoleEvent ConsoleEvent$Write))
   (:gen-class
     :state state
     :init init
     :prefix "-"
-    :methods [[start [net.devdude.lispcraft.runtime.Console] void]
-              [sendRuntimeEvent [net.devdude.lispcraft.runtime.RuntimeEvent] void]]
+    :methods [[start [java.io.OutputStream] void]
+              [sendConsoleEvent [net.devdude.lispcraft.runtime.ConsoleEvent] void]]
     :main false))
 
 (defn -init []
@@ -39,18 +40,18 @@
   (-get this :event-channel))
 
 (defn -send-event
-  [this ^RuntimeEvent event]
+  [this ^ConsoleEvent event]
   (.offer (-get-event-channel this) event, 0, TimeUnit/SECONDS))
 
-(defn ^RuntimeEvent -next-event
+(defn ^ConsoleEvent -next-event
   [this]
   (.take (-get-event-channel this)))
 
 (defmulti -event-handler class)
 
-(defmethod -event-handler RuntimeEvent$Print
-  [event] (fn [this ^Console console]
-            (.print console (.text event))
+(defmethod -event-handler ConsoleEvent$Write
+  [event] (fn [this ^OutputStream console]
+            (.write console (.bytes event))
             (.flush console)))
 
 (defn -do-event-loop
@@ -60,16 +61,16 @@
 
 (defn -start
   "Entrypoint for the console block's runtime"
-  [this ^Console console]
+  [this ^OutputStream console]
   (assert (not (nil? console)))
   (Thread/startVirtualThread
     #(try
        (-do-event-loop this console)
        (catch Exception e
-         (.print console (str (.getMessage e)))
+         (.write console (.getBytes (.getMessage e)))
          (.flush console)))))
 
-(defn -sendRuntimeEvent
-  [this ^RuntimeEvent event]
+(defn -sendConsoleEvent
+  [this ^ConsoleEvent event]
   (-send-event this event))
 

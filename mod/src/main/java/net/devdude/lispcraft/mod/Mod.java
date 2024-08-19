@@ -10,7 +10,7 @@ import io.wispforest.owo.registration.reflect.ItemRegistryContainer;
 import net.devdude.lispcraft.mod.common.console.ConsoleBlock;
 import net.devdude.lispcraft.mod.common.console.ConsoleBlockEntity;
 import net.devdude.lispcraft.mod.common.console.ConsoleScreenHandler;
-import net.devdude.lispcraft.runtime.RuntimeEvent;
+import net.devdude.lispcraft.runtime.ConsoleEvent;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
@@ -44,7 +44,7 @@ public class Mod implements ModInitializer {
         MOD_GROUP.initialize();
         Network.initialize();
 
-        ReflectiveEndecBuilder.SHARED_INSTANCE.register(RuntimeEvent.ENDEC, RuntimeEvent.class);
+        ReflectiveEndecBuilder.SHARED_INSTANCE.register(ConsoleEvent.ENDEC, ConsoleEvent.class);
     }
 
     public static class Items implements ItemRegistryContainer {

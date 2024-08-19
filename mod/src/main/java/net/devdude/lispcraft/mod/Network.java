@@ -10,12 +10,12 @@ public class Network {
         CHANNEL.registerServerbound(PingPacket.class, Network::handlePing);
     }
 
-    public static void sendPing(String ping) {
-        CHANNEL.clientHandle().send(new PingPacket(ping));
-    }
-
     public static void handlePing(PingPacket packet, ServerAccess access) {
         Mod.LOGGER.info("Ping {}", packet.ping);
+    }
+
+    public static void sendPing(String ping) {
+        CHANNEL.clientHandle().send(new PingPacket(ping));
     }
 
     public record PingPacket(String ping) {

@@ -4,34 +4,46 @@ import io.wispforest.owo.ui.base.BaseComponent;
 import io.wispforest.owo.ui.core.OwoUIDrawContext;
 import io.wispforest.owo.ui.core.Sizing;
 import net.devdude.lispcraft.mod.Mod;
+import net.devdude.lispcraft.runtime.Console;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 
 public class CharGridComponent extends BaseComponent {
+    static final int foreground = 0xFFFFFFFF;
+    static final int background = 0xFF000000;
+
     TextRenderer textRenderer;
     Style style;
+    Style styleUnderline;
 
     int xChars;
     int yChars;
 
-    //    TODO: Screen provider should know the size
-    ScreenProvider screenProvider;
+    int glyphWidth;
+    int glyphHeight;
 
-    public CharGridComponent(int xChars, int yChars, ScreenProvider screenProvider) {
+    //    TODO: We should know the screen size before
+    BufferProvider bufferProvider;
+    CursorProvider cursorProvider;
+
+
+    public CharGridComponent(int xChars, int yChars, BufferProvider bufferProvider, CursorProvider cursorProvider) {
         super();
 
         style = Style.EMPTY.withFont(Mod.id("mono"));
+        styleUnderline = Style.EMPTY.withUnderline(true);
 
         textRenderer = MinecraftClient.getInstance().textRenderer;
 
         this.xChars = xChars;
         this.yChars = yChars;
-        this.screenProvider = screenProvider;
+        this.bufferProvider = bufferProvider;
+        this.cursorProvider = cursorProvider;
 
-        var glyphWidth = textRenderer.getWidth(Text.literal("t").setStyle(style));
-        var glyphHeight = textRenderer.fontHeight;
+        this.glyphWidth = textRenderer.getWidth(Text.literal("t").setStyle(style));
+        this.glyphHeight = textRenderer.fontHeight;
 
         this.sizing(
                 Sizing.fixed(glyphWidth * xChars),
@@ -43,26 +55,35 @@ public class CharGridComponent extends BaseComponent {
     public void draw(OwoUIDrawContext context, int mouseX, int mouseY, float partialTicks, float delta) {
         context.drawGradientRect(
                 this.x, this.y, this.width, this.height,
-                0xFF000000, 0xFF000000,
-                0xFF000000, 0xFF000000
+                background, background, background, background
         );
 
-        var screen = screenProvider.getScreen();
+        var screen = bufferProvider.getBuffer();
         for (int y = 0; y < yChars; y++) {
             var line = Text.literal(new String(screen[y])).setStyle(style);
 
-            var lineY = this.y + (y * textRenderer.fontHeight);
+            var lineY = this.y + (y * glyphHeight);
             var lineX = this.x;
 
             context.drawText(
-                    line, lineX, lineY, 1.0f, 0xFFFFFFFF
+                    line, lineX, lineY, 1.0f, foreground
             );
 
         }
+
+        var cursor = cursorProvider.getCursor();
+        var cursorY = this.y + (cursor.y() * glyphHeight);
+        var cursorX = this.x + (cursor.x() * glyphWidth);
+        context.drawText(Text.literal(" ").setStyle(styleUnderline), cursorX, cursorY, 1.0f, foreground);
     }
 
     @FunctionalInterface
-    public interface ScreenProvider {
-        char[][] getScreen();
+    public interface BufferProvider {
+        char[][] getBuffer();
+    }
+
+    @FunctionalInterface
+    public interface CursorProvider {
+        Console.Location getCursor();
     }
 }

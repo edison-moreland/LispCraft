@@ -22,11 +22,6 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
     }
 
     @Override
-    public ConsoleScreenHandler getScreenHandler() {
-        return handler;
-    }
-
-    @Override
     public boolean shouldPause() {
         return false;
     }
@@ -45,7 +40,7 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
 
         rootComponent.child(
                 Containers.verticalFlow(Sizing.content(), Sizing.content())
-                        .child(new CharGridComponent(40, 20, this.handler.characters::get))
+                        .child(new CharGridComponent(40, 20, this.handler.buffer::get, this.handler.cursor::get))
                         .padding(Insets.of(10))
                         .surface(Surface.DARK_PANEL)
                         .verticalAlignment(VerticalAlignment.CENTER)
@@ -54,30 +49,35 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
     }
 
     @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        return switch (keyCode) {
+            case GLFW.GLFW_KEY_BACKSPACE -> {
+                getScreenHandler().writeCharacter(ANSI.BS);
+                yield true;
+            }
+            case GLFW.GLFW_KEY_TAB -> {
+                getScreenHandler().writeCharacter(ANSI.TAB);
+                yield true;
+            }
+            case GLFW.GLFW_KEY_ENTER -> {
+                getScreenHandler().writeCharacter(ANSI.LF);
+                yield true;
+            }
+            default -> super.keyPressed(keyCode, scanCode, modifiers);
+        };
+    }
+
+    @Override
     public boolean charTyped(char chr, int modifiers) {
         if (!super.charTyped(chr, modifiers)) {
-            getScreenHandler().sendCharacter(chr);
+            getScreenHandler().writeCharacter(chr);
         }
 
         return true;
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        return switch (keyCode) {
-            case GLFW.GLFW_KEY_BACKSPACE -> {
-                getScreenHandler().sendCharacter(ANSI.BS);
-                yield true;
-            }
-            case GLFW.GLFW_KEY_TAB -> {
-                getScreenHandler().sendCharacter(ANSI.TAB);
-                yield true;
-            }
-            case GLFW.GLFW_KEY_ENTER -> {
-                getScreenHandler().sendCharacter(ANSI.LF);
-                yield true;
-            }
-            default -> super.keyPressed(keyCode, scanCode, modifiers);
-        };
+    public ConsoleScreenHandler getScreenHandler() {
+        return handler;
     }
 }

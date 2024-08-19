@@ -3,8 +3,8 @@ package net.devdude.lispcraft.mod.common.console;
 import net.devdude.lispcraft.mod.Mod;
 import net.devdude.lispcraft.mod.Network;
 import net.devdude.lispcraft.runtime.Console;
+import net.devdude.lispcraft.runtime.ConsoleEvent;
 import net.devdude.lispcraft.runtime.ConsoleRuntime;
-import net.devdude.lispcraft.runtime.RuntimeEvent;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.BlockState;
@@ -17,6 +17,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+
+import java.io.OutputStream;
 
 public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
     @Environment(EnvType.SERVER)
@@ -35,7 +37,7 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
         if (!world.isClient()) {
             assert this.console != null;
             this.runtime = new ConsoleRuntime();
-            this.runtime.start(this.console);
+            this.runtime.start((OutputStream) this.console);
         } else {
             Network.sendPing("Pong");
         }
@@ -46,14 +48,14 @@ public class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandle
         return new ConsoleScreenHandler(syncId, playerInventory, this.console, this::handle);
     }
 
+    @Environment(EnvType.SERVER)
+    public void handle(ConsoleEvent event) {
+        assert this.runtime != null;
+        this.runtime.sendConsoleEvent(event);
+    }
+
     @Override
     public Text getDisplayName() {
         return Text.translatable(getCachedState().getBlock().getTranslationKey());
-    }
-
-    @Environment(EnvType.SERVER)
-    public void handle(RuntimeEvent event) {
-        assert this.runtime != null;
-        this.runtime.sendRuntimeEvent(event);
     }
 }
