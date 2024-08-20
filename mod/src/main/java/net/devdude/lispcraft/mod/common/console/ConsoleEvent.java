@@ -1,4 +1,4 @@
-package net.devdude.lispcraft.runtime;
+package net.devdude.lispcraft.mod.common.console;
 
 // Runtime events need to be easily serializable, which is why they're in java
 

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "lispcraft:block/shell_console"
+    }
+  }
+}

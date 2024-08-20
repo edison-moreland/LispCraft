@@ -6,7 +6,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "lispcraft:console"
+          "name": "lispcraft:clojure_console"
         }
       ],
       "conditions": [

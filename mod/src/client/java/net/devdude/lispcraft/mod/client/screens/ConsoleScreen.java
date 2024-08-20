@@ -6,7 +6,7 @@ import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
 import net.devdude.lispcraft.mod.client.components.CharGridComponent;
 import net.devdude.lispcraft.mod.common.console.ConsoleScreenHandler;
-import net.devdude.lispcraft.runtime.ANSI;
+import net.devdude.lispcraft.mod.common.vt100.ANSI;
 import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;

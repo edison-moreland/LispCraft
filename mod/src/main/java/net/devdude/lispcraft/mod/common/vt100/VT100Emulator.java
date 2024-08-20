@@ -1,17 +1,19 @@
-package net.devdude.lispcraft.runtime;
+package net.devdude.lispcraft.mod.common.vt100;
 
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Console extends OutputStream {
+// Emulate the screen buffer of a VT100 console
+// Writing to the output stream will update the screen buffer
+public class VT100Emulator extends OutputStream {
     public final Size size;
     protected final List<ConsoleStateConsumer> observers;
 
     private char[][] buffer;
     private Location cursor;
 
-    public Console(Size size) {
+    public VT100Emulator(Size size) {
         this.observers = new ArrayList<>();
 
         this.size = size;
@@ -152,6 +154,10 @@ public class Console extends OutputStream {
     private void setCursor(int x, int y) {
         assert x >= 0 && x < size.width && y >= 0 && y < size.height;
         this.cursor = new Location(x, y);
+    }
+
+    public Location getCursor() {
+        return this.cursor;
     }
 
     @FunctionalInterface

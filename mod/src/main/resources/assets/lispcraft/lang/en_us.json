@@ -1,4 +1,5 @@
 {
   "itemGroup.lispcraft.item_group": "LispCraft",
-  "block.lispcraft.console": "Console"
+  "block.lispcraft.shell_console": "Shell Console",
+  "block.lispcraft.clojure_console": "Clojure Console"
 }

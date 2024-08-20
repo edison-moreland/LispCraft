@@ -1,4 +1,4 @@
-package net.devdude.lispcraft.runtime;
+package net.devdude.lispcraft.mod.common.vt100;
 
 public class ANSI {
 

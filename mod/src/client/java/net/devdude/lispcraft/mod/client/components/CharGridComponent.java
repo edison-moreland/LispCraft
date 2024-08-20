@@ -4,7 +4,7 @@ import io.wispforest.owo.ui.base.BaseComponent;
 import io.wispforest.owo.ui.core.OwoUIDrawContext;
 import io.wispforest.owo.ui.core.Sizing;
 import net.devdude.lispcraft.mod.Mod;
-import net.devdude.lispcraft.runtime.Console;
+import net.devdude.lispcraft.mod.common.vt100.VT100Emulator;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.text.Style;
@@ -84,6 +84,6 @@ public class CharGridComponent extends BaseComponent {
 
     @FunctionalInterface
     public interface CursorProvider {
-        Console.Location getCursor();
+        VT100Emulator.Location getCursor();
     }
 }

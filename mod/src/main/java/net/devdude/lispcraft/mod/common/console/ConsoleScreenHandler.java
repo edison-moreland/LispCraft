@@ -4,8 +4,7 @@ import io.wispforest.endec.Endec;
 import io.wispforest.endec.impl.RecordEndec;
 import io.wispforest.owo.client.screens.SyncedProperty;
 import net.devdude.lispcraft.mod.Mod;
-import net.devdude.lispcraft.runtime.Console;
-import net.devdude.lispcraft.runtime.ConsoleEvent;
+import net.devdude.lispcraft.mod.common.vt100.VT100Emulator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.entity.player.PlayerEntity;
@@ -16,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class ConsoleScreenHandler extends ScreenHandler {
     public SyncedProperty<char[][]> buffer;
-    public SyncedProperty<Console.Location> cursor;
+    public SyncedProperty<VT100Emulator.Location> cursor;
 
     // Called by the client
     public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory) {
@@ -24,7 +23,7 @@ public class ConsoleScreenHandler extends ScreenHandler {
     }
 
     // Called by the server
-    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable Console console, @Nullable ConsoleEvent.RuntimeEventHandler eventHandler) {
+    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable VT100Emulator vt100, @Nullable ConsoleEvent.RuntimeEventHandler eventHandler) {
         super(Mod.ScreenHandlers.CONSOLE, syncId);
 
         this.addServerboundMessage(RuntimeEventPacket.class, RuntimeEventPacket.ENDEC, event -> {
@@ -33,15 +32,16 @@ public class ConsoleScreenHandler extends ScreenHandler {
         });
 
         buffer = this.createProperty(char[][].class, new char[20][40]);
-        cursor = this.createProperty(Console.Location.class, new Console.Location(0, 0));
+        cursor = this.createProperty(VT100Emulator.Location.class, new VT100Emulator.Location(0, 0));
 
-        if (console != null) {
+        if (vt100 != null) {
             // Only the server passes in the screen
-            this.buffer.set(console.getScreen());
+            this.buffer.set(vt100.getScreen());
+            this.cursor.set(vt100.getCursor());
 
             // TODO: We have no way to remove an observer from here.
             //       Will the block entity just accumulate dead observers? Are they cleaned up somehow?
-            console.onChange(((buffer, cursor) -> {
+            vt100.onChange(((buffer, cursor) -> {
                 this.buffer.set(buffer);
                 this.cursor.set(cursor);
             }));
