@@ -52,15 +52,15 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         return switch (keyCode) {
             case GLFW.GLFW_KEY_BACKSPACE -> {
-                getScreenHandler().write(ANSI.BS);
+                getScreenHandler().writeInput(ANSI.BS);
                 yield true;
             }
             case GLFW.GLFW_KEY_TAB -> {
-                getScreenHandler().write(ANSI.TAB);
+                getScreenHandler().writeInput(ANSI.TAB);
                 yield true;
             }
             case GLFW.GLFW_KEY_ENTER -> {
-                getScreenHandler().write(ANSI.LF);
+                getScreenHandler().writeInput(ANSI.LF);
                 yield true;
             }
             default -> super.keyPressed(keyCode, scanCode, modifiers);
@@ -75,7 +75,7 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
     @Override
     public boolean charTyped(char chr, int modifiers) {
         if (!super.charTyped(chr, modifiers)) {
-            getScreenHandler().write(chr);
+            getScreenHandler().writeInput(new byte[]{(byte) chr});
         }
 
         return true;

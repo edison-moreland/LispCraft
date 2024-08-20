@@ -1,7 +1,5 @@
 package net.devdude.lispcraft.mod.common.console;
 
-import io.wispforest.endec.Endec;
-import io.wispforest.endec.impl.RecordEndec;
 import io.wispforest.owo.client.screens.SyncedProperty;
 import net.devdude.lispcraft.mod.Mod;
 import net.devdude.lispcraft.mod.common.vt100.VT100Emulator;
@@ -13,22 +11,28 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
+
 public class ConsoleScreenHandler extends ScreenHandler {
     public SyncedProperty<char[][]> buffer;
     public SyncedProperty<VT100Emulator.Location> cursor;
 
     // Called by the client
     public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory) {
-        this(syncId, playerInventory, null, null);
+        this(syncId, playerInventory, null);
     }
 
     // Called by the server
-    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable VT100Emulator vt100, @Nullable ConsoleEvent.RuntimeEventHandler eventHandler) {
+    public ConsoleScreenHandler(int syncId, PlayerInventory playerInventory, @Nullable VT100Emulator vt100) {
         super(Mod.ScreenHandlers.CONSOLE, syncId);
 
-        this.addServerboundMessage(RuntimeEventPacket.class, RuntimeEventPacket.ENDEC, event -> {
-            assert eventHandler != null;
-            eventHandler.handle(event.event);
+        this.addServerboundMessage(KeyboardInputPacket.class, packet -> {
+            assert vt100 != null;
+            try {
+                vt100.writeKeyboardInput(packet.input);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         });
 
         buffer = this.createProperty(char[][].class, new char[20][40]);
@@ -49,18 +53,18 @@ public class ConsoleScreenHandler extends ScreenHandler {
     }
 
     @Environment(EnvType.CLIENT)
-    public void write(char character) {
-        write(new byte[]{(byte) character});
+    public void writeInput(char character) {
+        writeInput(new byte[]{(byte) character});
     }
 
     @Environment(EnvType.CLIENT)
-    public void write(byte[] bytes) {
-        this.sendMessage(new RuntimeEventPacket(new ConsoleEvent.Write(bytes)));
+    public void writeInput(byte[] bytes) {
+        this.sendMessage(new KeyboardInputPacket(bytes));
     }
 
     @Environment(EnvType.CLIENT)
-    public void write(int character) {
-        write(new byte[]{(byte) character});
+    public void writeInput(int character) {
+        writeInput(new byte[]{(byte) character});
     }
 
     @Override
@@ -73,7 +77,6 @@ public class ConsoleScreenHandler extends ScreenHandler {
         return true;
     }
 
-    public record RuntimeEventPacket(ConsoleEvent event) {
-        public static final Endec<RuntimeEventPacket> ENDEC = RecordEndec.createShared(RuntimeEventPacket.class);
+    public record KeyboardInputPacket(byte[] input) {
     }
 }

@@ -1,17 +1,27 @@
 package net.devdude.lispcraft.mod.common.vt100;
 
-import java.io.OutputStream;
+import net.devdude.lispcraft.mod.Mod;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
 // Emulate the screen buffer of a VT100 console
 // Writing to the output stream will update the screen buffer
-public class VT100Emulator extends OutputStream {
+public class VT100Emulator {
     public final Size size;
     protected final List<ConsoleStateConsumer> observers;
 
+    private final PipedInputStream input;
+    private final PipedOutputStream hostOutput;
+
+    private final PipedOutputStream output;
+    private final PipedInputStream hostInput;
+
     private char[][] buffer;
     private Location cursor;
+
+    private boolean running = false;
 
     public VT100Emulator(Size size) {
         this.observers = new ArrayList<>();
@@ -27,6 +37,72 @@ public class VT100Emulator extends OutputStream {
                 this.buffer[y][x] = ' ';
             }
         }
+
+        try {
+            this.input = new PipedInputStream();
+            this.hostOutput = new PipedOutputStream(this.input);
+
+            this.output = new PipedOutputStream();
+            this.hostInput = new PipedInputStream(this.output);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public InputStream getInputStream() throws IOException {
+        return this.hostInput;
+    }
+
+    public OutputStream getOutputStream() throws IOException {
+        return this.hostOutput;
+    }
+
+    public void start() {
+        assert !this.running;
+        this.running = true;
+        Thread.startVirtualThread(() -> {
+            try {
+                this.run();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+        });
+    }
+
+    private void run() throws IOException {
+        while (this.running) {
+            var c = this.input.read();
+
+            Mod.LOGGER.info("Writing {}", c);
+            if (ANSI.isControlCharacter(c)) {
+                switch (c) {
+                    case ANSI.LF:
+                        newLine();
+                        break;
+                    case ANSI.BS:
+                        backspace();
+                        break;
+                    case ANSI.TAB:
+                        tab();
+                        break;
+                    case ANSI.CR:
+                        setCursor(0, cursor.y);
+                        break;
+                    default:
+                        Mod.LOGGER.warn("Unknown control character: {}", c);
+                }
+            } else {
+                write((char) c);
+            }
+
+            this.flush();
+        }
+    }
+
+    public void stop() {
+        assert this.running;
+        this.running = false;
     }
 
     //    TODO: onChange logic is a hold over and probably not the best solution
@@ -38,16 +114,13 @@ public class VT100Emulator extends OutputStream {
         return this.buffer.clone();
     }
 
-    @Override
-    public void write(int c) {
-        if (ANSI.isControlCharacter(c)) {
-            handleControl(c);
-        } else {
-            print((char) c);
-        }
+    // accepts keyboard input after it's been translated to ANSI
+    public void writeKeyboardInput(byte[] input) throws IOException {
+        this.output.write(input);
+        this.output.flush();
+        // TODO: Local echo handled here
     }
 
-    @Override
     public void flush() {
         var buffer = this.buffer.clone();
         var cursor = this.cursor;
@@ -56,7 +129,7 @@ public class VT100Emulator extends OutputStream {
         }
     }
 
-    private void print(char c) {
+    private void write(char c) {
         buffer[cursor.y][cursor.x] = c;
 
         if (cursor.x + 1 >= size.width) {
@@ -66,28 +139,11 @@ public class VT100Emulator extends OutputStream {
         }
     }
 
-    private void handleControl(int c) {
-        switch (c) {
-            case ANSI.LF:
-                newLine();
-                break;
-            case ANSI.BS:
-                backspace();
-                break;
-            case ANSI.TAB:
-                tab();
-                break;
-            case ANSI.CR:
-                moveCursor(0, cursor.y);
-                break;
-        }
-    }
-
     private void tab() {
         // Move the cursor to the next multiple of 8
         var x = (8 - cursor.x % 8);
         for (int i = 0; i < x; i++) {
-            print(' ');
+            write(' ');
         }
     }
 
@@ -152,7 +208,9 @@ public class VT100Emulator extends OutputStream {
     }
 
     private void setCursor(int x, int y) {
-        assert x >= 0 && x < size.width && y >= 0 && y < size.height;
+        if ((x < 0 || x >= size.width) || (y < 0 || y >= size.height)) {
+            throw new RuntimeException("cursor out of bounds");
+        }
         this.cursor = new Location(x, y);
     }
 

@@ -16,14 +16,17 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public abstract class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
     @Environment(EnvType.SERVER)
-    VT100Emulator vt100 = new VT100Emulator(new VT100Emulator.Size(40, 20));
-    // Used to write to the stdin of the process attached to this console
-    @Environment(EnvType.SERVER)
-    PipedOutputStream processStdin = new PipedOutputStream();
+    @Nullable
+    VT100Emulator vt100;
+    //    // Used to write to the stdin of the process attached to this console
+    //    @Environment(EnvType.SERVER)
+    //    PipedOutputStream processStdin = new PipedOutputStream();
 
     public ConsoleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -31,9 +34,12 @@ public abstract class ConsoleBlockEntity extends BlockEntity implements NamedScr
 
     @Override
     public void setWorld(World world) {
+        super.setWorld(world);
         if (!world.isClient()) {
+            this.vt100 = new VT100Emulator(new VT100Emulator.Size(40, 20));
             try {
-                this.startConsole(new PipedInputStream(processStdin), vt100);
+                this.vt100.start();
+                this.startConsole(vt100.getInputStream(), vt100.getOutputStream());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -41,6 +47,7 @@ public abstract class ConsoleBlockEntity extends BlockEntity implements NamedScr
             ServerBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register((blockEntity, serverWorld) -> {
                 if (blockEntity == this) {
                     this.endConsole();
+                    this.vt100.stop();
                 }
             });
         }
@@ -54,24 +61,31 @@ public abstract class ConsoleBlockEntity extends BlockEntity implements NamedScr
 
     @Override
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        return new ConsoleScreenHandler(syncId, playerInventory, this.vt100, this::handle);
+        return new ConsoleScreenHandler(syncId, playerInventory, this.vt100);
     }
 
-    @Environment(EnvType.SERVER)
-    public void handle(ConsoleEvent event) {
-        switch (event) {
-            case ConsoleEvent.Write w:
-                try {
-                    this.processStdin.write(w.bytes());
-                    this.processStdin.flush();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                break;
-            default:
-                throw new IllegalStateException("Unexpected event: " + event);
-        }
-    }
+    //    @Environment(EnvType.SERVER)
+    //    public void handle(ConsoleEvent event) {
+    //        assert this.vt100 != null;
+    //        switch (event) {
+    //            case ConsoleEvent.Write w:
+    //                //                try {
+    //                //                    this.vt100.write(w.bytes());
+    //                //                } catch (IOException e) {
+    //                //                    throw new RuntimeException(e);
+    //                //                }
+    //                break;
+    //            case ConsoleEvent.KeyboardInput k:
+    //                try {
+    //                    this.vt100.writeKeyboardInput(k.input());
+    //                } catch (IOException e) {
+    //                    throw new RuntimeException(e);
+    //                }
+    //                break;
+    //            default:
+    //                throw new IllegalStateException("Unexpected event: " + event);
+    //        }
+    //    }
 
     @Override
     public Text getDisplayName() {

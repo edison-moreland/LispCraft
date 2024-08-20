@@ -39,15 +39,17 @@ public class ShellConsoleBlock extends ConsoleBlock {
 
         @Override
         public void startConsole(InputStream input, OutputStream output) throws IOException {
-            this.process = new ProcessBuilder("/bin/sh").start();
+            var processBuilder = new ProcessBuilder("/bin/zsh", "-i").redirectErrorStream(true);
+            processBuilder.environment().put("TERM", "vt100");
+            this.process = processBuilder.start();
             if (!this.process.isAlive()) {
                 throw new IllegalStateException("Shell console process not running");
             }
-            this.done = false;
             this.process.onExit().whenComplete((process, ex) -> this.done = true);
+            this.done = false;
 
             copyStream(this.process.getInputStream(), output);
-            copyStream(this.process.getErrorStream(), output);
+            //            copyStream(this.process.getErrorStream(), output);
             copyStream(input, this.process.getOutputStream());
         }
 
