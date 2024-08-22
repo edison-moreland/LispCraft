@@ -8,36 +8,25 @@ import java.nio.MappedByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-// Emulate the screen buffer of a VT100 console
+// Emulate a VT100 console
 // Writing to the output stream will update the screen buffer
-public class VT100Emulator {
-    public final Size size;
-    protected final List<ConsoleStateConsumer> observers;
+public class VT100 {
+    protected final List<ScreenBufferConsumer> observers;
 
     private final PipedInputStream input;
     private final PipedOutputStream hostOutput;
 
     private final PipedOutputStream output;
     private final PipedInputStream hostInput;
+
+    private final VT100ScreenBuffer screen;
     private final ByteBuffer parseBuf = MappedByteBuffer.allocate(255);
-    private char[][] buffer;
-    private Location cursor;
     private boolean running = false;
 
-    public VT100Emulator(Size size) {
+    public VT100(Size size) {
         this.observers = new ArrayList<>();
 
-        this.size = size;
-        this.buffer = new char[size.height][size.width];
-        this.cursor = new Location(0, 0);
-
-        // TODO: We fill the buffer with spaces because a null character is rendered as a box
-        //       Since we control text rendering, we should just not render null characters
-        for (int y = 0; y < size.height; y++) {
-            for (int x = 0; x < size.width; x++) {
-                this.buffer[y][x] = ' ';
-            }
-        }
+        this.screen = new VT100ScreenBuffer(size);
 
         try {
             this.input = new PipedInputStream();
@@ -48,6 +37,10 @@ public class VT100Emulator {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static boolean isInRange(int v, int low, int high) {
+        return low <= v && v <= high;
     }
 
     public InputStream getInputStream() throws IOException {
@@ -98,7 +91,7 @@ public class VT100Emulator {
                 tab();
                 break;
             case ANSI.CR:
-                setCursor(0, cursor.y);
+                screen.setCursor(0, screen.getCursor().y());
                 break;
             case ANSI.ESC:
                 // C1 escape sequence, next byte should be 0x40 to 0x5F
@@ -129,47 +122,95 @@ public class VT100Emulator {
     }
 
     private void handleCSI() throws IOException {
-        // read until final byte, which should be in 0x40–0x7E
+        // Read control sequence
+        // parameter byte range = 0x30–0x3F
+        // intermediate byte range = 0x20–0x2F
+        // final byte range = 0x40–0x7E
+
+        var phase = 0; // 0 = looking for parameter, 1 = intermediate
+        var i = 0;
+        var finalParameterByteI = 0;
+        var finalIntermediateByteI = 0;
+        var finalByteI = 0;
         this.parseBuf.clear();
         while (this.running) {
             var next = this.input.read();
             this.parseBuf.put((byte) next);
 
+            if (phase == 0 && !isInRange(next, 0x30, 0x3F)) {
+                finalParameterByteI = i - 1;
+                phase = 1;
+            }
+
+            if (phase == 1 && !isInRange(next, 0x20, 0x2F)) {
+                finalIntermediateByteI = i - 1;
+                phase = 2;
+            }
+
             if (next >= 0x40 && next <= 0x7E) {
+                if (phase != 2) {
+                    throw new RuntimeException("This shouldn't happen, you messed up");
+                }
+
+                finalByteI = i;
                 break;
             }
+
+            i++;
         }
 
-        var parameterBytes = new byte[this.parseBuf.position() - 1];
-        this.parseBuf.get(0, parameterBytes);
-        //        TODO: Intermediate bytes
-        byte finalByte = this.parseBuf.get(this.parseBuf.position() - 1);
+        byte[] parameterBytes = null;
+        if (finalParameterByteI >= 0) {
+            parameterBytes = new byte[finalParameterByteI + 1];
+            this.parseBuf.get(0, parameterBytes);
+        }
+
+        byte[] intermediateBytes = null;
+        if (finalIntermediateByteI != finalParameterByteI) {
+            intermediateBytes = new byte[finalIntermediateByteI - finalParameterByteI];
+            this.parseBuf.get(finalParameterByteI + 1, intermediateBytes);
+        }
+
+        byte finalByte = this.parseBuf.get(finalByteI);
 
         switch (finalByte) {
             case 109: // SGR
                 var sgr = 0;
-                if (parameterBytes.length > 0) {
+                if (parameterBytes != null) {
                     sgr = Integer.parseInt(new String(parameterBytes));
                 }
 
-                Mod.LOGGER.info("CSI SGR {}", sgr);
+                handleSGR(sgr);
                 break;
             default:
                 var seq = new byte[parseBuf.position()];
                 parseBuf.get(0, seq);
-                Mod.LOGGER.warn("Unknown control sequence: CSI {}", seq);
+
+                var parsed = "";
+                if (parameterBytes != null) {
+                    parsed += new String(parameterBytes);
+                }
+                if (intermediateBytes != null) {
+                    parsed += new String(intermediateBytes);
+                }
+                parsed += new String(new byte[]{finalByte});
+
+                Mod.LOGGER.warn("Unknown control sequence: CSI {} {}", parsed, seq);
         }
     }
 
     private void handleSGR(int sgr) {
+        Mod.LOGGER.info("CSI SGR {}", sgr);
         switch (sgr) {
             case 0:
                 // reset
                 break;
             case 1:
                 // bold
+                break;
             case 7:
                 // negative
+                break;
         }
     }
 
@@ -178,13 +219,13 @@ public class VT100Emulator {
         this.running = false;
     }
 
-    //    TODO: onChange logic is a hold over and probably not the best solution
-    public void onChange(ConsoleStateConsumer observer) {
+    // TODO: onChange logic is a hold over and probably not the best solution
+    public void onChange(ScreenBufferConsumer observer) {
         this.observers.add(observer);
     }
 
-    public char[][] getScreen() {
-        return this.buffer.clone();
+    public VT100ScreenBuffer getScreen() {
+        return this.screen.clone();
     }
 
     // accepts keyboard input after it's been translated to ANSI
@@ -195,114 +236,78 @@ public class VT100Emulator {
         // Do local echo
         this.hostOutput.write(input);
         this.hostOutput.flush();
-        // TODO: Local echo handled here
     }
 
     public void flush() {
-        var buffer = this.buffer.clone();
-        var cursor = this.cursor;
+        var screen = getScreen();
         for (var observer : this.observers) {
-            observer.consoleStateUpdate(buffer, cursor);
+            observer.screenBufferUpdates(screen);
         }
     }
 
     private void write(char c) {
-        buffer[cursor.y][cursor.x] = c;
+        screen.setCharacter(c, Style.DEFAULT);
 
-        if (cursor.x + 1 >= size.width) {
+        if (screen.getCursor().x() + 1 >= screen.getSize().width()) {
             newLine();
         } else {
-            moveCursor(1, 0);
+            screen.setCursorRelative(1, 0);
         }
     }
 
     private void tab() {
         // Move the cursor to the next multiple of 8
-        var x = (8 - cursor.x % 8);
+        var x = (8 - screen.getCursor().x() % 8);
         for (int i = 0; i < x; i++) {
             write(' ');
         }
     }
 
     private void newLine() {
-        if (cursor.y + 1 >= size.height) {
-            scroll(1);
-            setCursor(0, size.height - 1);
+        if (screen.getCursor().y() + 1 >= screen.getSize().height()) {
+            this.screen.scroll(1);
+            screen.setCursor(0, screen.getSize().height() - 1);
         } else {
-            setCursor(0, cursor.y + 1);
+            screen.setCursor(0, screen.getCursor().y() + 1);
         }
     }
 
-
     private void backspace() {
-        if (cursor.x == 0) {
-            if (cursor.y == 0) {
+        if (screen.getCursor().x() == 0) {
+            if (screen.getCursor().y() == 0) {
                 return; // At the top of the screen, nothing to do
             }
 
             // The cursor is at the start of a line, we need to put it behind any text on the line above
-            setCursorBehindText(cursor.y - 1);
+            setCursorBehindText(screen.getCursor().y() - 1);
         } else {
             // The cursor is somewhere in the middle of a line
-            moveCursor(-1, 0);
+            screen.setCursorRelative(-1, 0);
         }
 
-        buffer[cursor.y][cursor.x] = ' ';
-    }
-
-    private void scroll(int by) {
-        for (var y = 0; y < size.height; y++) {
-            if (y < size.height - by) {
-                buffer[y] = buffer[y + by];
-            } else {
-                buffer[y] = new char[size.width];
-                for (var x = 0; x < size.width; x++) {
-                    buffer[y][x] = ' ';
-                }
-            }
-        }
-        moveCursor(0, -by);
+        screen.setCharacter(' ', Style.DEFAULT);
     }
 
     private void setCursorBehindText(int y) {
         // Going backwards, find the first column without text and put the cursor to it's right
         // - If there is text in the last column, put the cursor on the last column
         // - If the line is empty, put the cursor on the first column
-        for (var x = size.width - 1; x >= 0; x--) {
-            if (buffer[y][x] != ' ') {
+        for (var x = screen.getSize().width() - 1; x >= 0; x--) {
+            if (screen.getCodepointAt(x, y) != ' ') {
                 // This is the last column with text in it
-                setCursor(Integer.min(x + 1, size.width - 1), y);
+                screen.setCursor(Integer.min(x + 1, screen.getSize().width() - 1), y);
                 return;
             }
         }
 
         // This line is empty
-        setCursor(0, y);
-    }
-
-    private void moveCursor(int x, int y) {
-        setCursor(cursor.x + x, cursor.y + y);
-    }
-
-    private void setCursor(int x, int y) {
-        if ((x < 0 || x >= size.width) || (y < 0 || y >= size.height)) {
-            throw new RuntimeException("cursor out of bounds");
-        }
-        this.cursor = new Location(x, y);
-    }
-
-    public Location getCursor() {
-        return this.cursor;
+        screen.setCursor(0, y);
     }
 
     @FunctionalInterface
-    public interface ConsoleStateConsumer {
-        void consoleStateUpdate(char[][] buffer, Location cursor);
+    public interface ScreenBufferConsumer {
+        void screenBufferUpdates(VT100ScreenBuffer buffer);
     }
 
-    public record Size(int width, int height) {
-    }
 
-    public record Location(int x, int y) {
-    }
 }

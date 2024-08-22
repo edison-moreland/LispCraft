@@ -1,6 +1,7 @@
 package net.devdude.lispcraft.mod.common.console;
 
-import net.devdude.lispcraft.mod.common.vt100.VT100Emulator;
+import net.devdude.lispcraft.mod.common.vt100.Size;
+import net.devdude.lispcraft.mod.common.vt100.VT100;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerBlockEntityEvents;
@@ -23,10 +24,7 @@ import java.io.OutputStream;
 public abstract class ConsoleBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
     @Environment(EnvType.SERVER)
     @Nullable
-    VT100Emulator vt100;
-    //    // Used to write to the stdin of the process attached to this console
-    //    @Environment(EnvType.SERVER)
-    //    PipedOutputStream processStdin = new PipedOutputStream();
+    VT100 vt100;
 
     public ConsoleBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -36,7 +34,7 @@ public abstract class ConsoleBlockEntity extends BlockEntity implements NamedScr
     public void setWorld(World world) {
         super.setWorld(world);
         if (!world.isClient()) {
-            this.vt100 = new VT100Emulator(new VT100Emulator.Size(40, 20));
+            this.vt100 = new VT100(new Size(40, 20));
             try {
                 this.vt100.start();
                 this.startConsole(vt100.getInputStream(), vt100.getOutputStream());
@@ -63,29 +61,6 @@ public abstract class ConsoleBlockEntity extends BlockEntity implements NamedScr
     public @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
         return new ConsoleScreenHandler(syncId, playerInventory, this.vt100);
     }
-
-    //    @Environment(EnvType.SERVER)
-    //    public void handle(ConsoleEvent event) {
-    //        assert this.vt100 != null;
-    //        switch (event) {
-    //            case ConsoleEvent.Write w:
-    //                //                try {
-    //                //                    this.vt100.write(w.bytes());
-    //                //                } catch (IOException e) {
-    //                //                    throw new RuntimeException(e);
-    //                //                }
-    //                break;
-    //            case ConsoleEvent.KeyboardInput k:
-    //                try {
-    //                    this.vt100.writeKeyboardInput(k.input());
-    //                } catch (IOException e) {
-    //                    throw new RuntimeException(e);
-    //                }
-    //                break;
-    //            default:
-    //                throw new IllegalStateException("Unexpected event: " + event);
-    //        }
-    //    }
 
     @Override
     public Text getDisplayName() {

@@ -4,7 +4,7 @@ import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.container.Containers;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
-import net.devdude.lispcraft.mod.client.components.CharGridComponent;
+import net.devdude.lispcraft.mod.client.components.VT100ScreenComponent;
 import net.devdude.lispcraft.mod.common.console.ConsoleScreenHandler;
 import net.devdude.lispcraft.mod.common.vt100.ANSI;
 import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
@@ -40,7 +40,7 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
 
         rootComponent.child(
                 Containers.verticalFlow(Sizing.content(), Sizing.content())
-                        .child(new CharGridComponent(40, 20, this.handler.buffer::get, this.handler.cursor::get))
+                        .child(new VT100ScreenComponent(this.handler.screen::get))
                         .padding(Insets.of(10))
                         .surface(Surface.DARK_PANEL)
                         .verticalAlignment(VerticalAlignment.CENTER)
