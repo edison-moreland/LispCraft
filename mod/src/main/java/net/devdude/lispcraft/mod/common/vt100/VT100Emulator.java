@@ -3,6 +3,8 @@ package net.devdude.lispcraft.mod.common.vt100;
 import net.devdude.lispcraft.mod.Mod;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,10 +19,9 @@ public class VT100Emulator {
 
     private final PipedOutputStream output;
     private final PipedInputStream hostInput;
-
+    private final ByteBuffer parseBuf = MappedByteBuffer.allocate(255);
     private char[][] buffer;
     private Location cursor;
-
     private boolean running = false;
 
     public VT100Emulator(Size size) {
@@ -71,32 +72,104 @@ public class VT100Emulator {
     }
 
     private void run() throws IOException {
+
         while (this.running) {
             var c = this.input.read();
 
-            Mod.LOGGER.info("Writing {}", c);
             if (ANSI.isControlCharacter(c)) {
-                switch (c) {
-                    case ANSI.LF:
-                        newLine();
-                        break;
-                    case ANSI.BS:
-                        backspace();
-                        break;
-                    case ANSI.TAB:
-                        tab();
-                        break;
-                    case ANSI.CR:
-                        setCursor(0, cursor.y);
-                        break;
-                    default:
-                        Mod.LOGGER.warn("Unknown control character: {}", c);
-                }
+                handleAnsiControl(c);
             } else {
                 write((char) c);
             }
 
             this.flush();
+        }
+    }
+
+    private void handleAnsiControl(int c) throws IOException {
+        switch (c) {
+            case ANSI.LF:
+                newLine();
+                break;
+            case ANSI.BS:
+                backspace();
+                break;
+            case ANSI.TAB:
+                tab();
+                break;
+            case ANSI.CR:
+                setCursor(0, cursor.y);
+                break;
+            case ANSI.ESC:
+                // C1 escape sequence, next byte should be 0x40 to 0x5F
+                handleC1();
+                break;
+            default:
+                Mod.LOGGER.warn("Unknown control character: {}", c);
+        }
+    }
+
+    private void handleC1() throws IOException {
+        var next = this.input.read();
+        switch (next) {
+            case C1.CSI:
+                // CSI control sequence introducer
+                handleCSI();
+                break;
+            case C1.NEL:
+                newLine();
+                break;
+            case C1.CCH:
+                backspace();
+                break;
+            default:
+                write((char) next);
+                Mod.LOGGER.warn("Unknown control sequence: C1 {}", next);
+        }
+    }
+
+    private void handleCSI() throws IOException {
+        // read until final byte, which should be in 0x40–0x7E
+        this.parseBuf.clear();
+        while (this.running) {
+            var next = this.input.read();
+            this.parseBuf.put((byte) next);
+
+            if (next >= 0x40 && next <= 0x7E) {
+                break;
+            }
+        }
+
+        var parameterBytes = new byte[this.parseBuf.position() - 1];
+        this.parseBuf.get(0, parameterBytes);
+        //        TODO: Intermediate bytes
+        byte finalByte = this.parseBuf.get(this.parseBuf.position() - 1);
+
+        switch (finalByte) {
+            case 109: // SGR
+                var sgr = 0;
+                if (parameterBytes.length > 0) {
+                    sgr = Integer.parseInt(new String(parameterBytes));
+                }
+
+                Mod.LOGGER.info("CSI SGR {}", sgr);
+                break;
+            default:
+                var seq = new byte[parseBuf.position()];
+                parseBuf.get(0, seq);
+                Mod.LOGGER.warn("Unknown control sequence: CSI {}", seq);
+        }
+    }
+
+    private void handleSGR(int sgr) {
+        switch (sgr) {
+            case 0:
+                // reset
+                break;
+            case 1:
+                // bold
+            case 7:
+                // negative
         }
     }
 
@@ -118,6 +191,10 @@ public class VT100Emulator {
     public void writeKeyboardInput(byte[] input) throws IOException {
         this.output.write(input);
         this.output.flush();
+
+        // Do local echo
+        this.hostOutput.write(input);
+        this.hostOutput.flush();
         // TODO: Local echo handled here
     }
 
