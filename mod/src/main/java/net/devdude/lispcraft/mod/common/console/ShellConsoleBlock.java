@@ -1,6 +1,8 @@
 package net.devdude.lispcraft.mod.common.console;
 
 import com.mojang.serialization.MapCodec;
+import com.pty4j.PtyProcess;
+import com.pty4j.PtyProcessBuilder;
 import net.devdude.lispcraft.mod.Mod;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.BlockWithEntity;
@@ -11,6 +13,8 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ShellConsoleBlock extends ConsoleBlock {
     public static final MapCodec<ConsoleBlock> CODEC = createCodec(ShellConsoleBlock::new);
@@ -30,7 +34,7 @@ public class ShellConsoleBlock extends ConsoleBlock {
     }
 
     public static class Entity extends ConsoleBlockEntity {
-        @Nullable Process process;
+        @Nullable PtyProcess process;
         boolean done = true;
 
         public Entity(BlockPos pos, BlockState state) {
@@ -39,18 +43,43 @@ public class ShellConsoleBlock extends ConsoleBlock {
 
         @Override
         public void startConsole(InputStream input, OutputStream output) throws IOException {
-            var processBuilder = new ProcessBuilder("/bin/zsh", "-i").redirectErrorStream(true);
-            processBuilder.environment().put("TERM", "vt100");
-            this.process = processBuilder.start();
+            String[] cmd = {"/bin/zsh", "-l"};
+            Map<String, String> env = new HashMap<>(System.getenv());
+            env.put("TERM", "xterm");
+            var size = this.vt100.getScreen().getSize();
+            process = new PtyProcessBuilder()
+                    .setInitialColumns(size.width())
+                    .setInitialRows(size.height())
+                    .setCommand(cmd)
+                    .setEnvironment(env)
+                    .setRedirectErrorStream(true)
+                    .start();
+
             if (!this.process.isAlive()) {
                 throw new IllegalStateException("Shell console process not running");
             }
-            this.process.onExit().whenComplete((process, ex) -> this.done = true);
+            Mod.LOGGER.info("Shell console process started {}", this.getPos());
+            Thread.startVirtualThread(this.process.onExit().whenComplete((process, ex) -> {
+                Mod.LOGGER.info("Shell console process exiting {}", this.getPos());
+                if (!this.done) {
+                    this.done = true;
+                }
+            })::join);
             this.done = false;
 
             copyStream(this.process.getInputStream(), output);
-            //            copyStream(this.process.getErrorStream(), output);
             copyStream(input, this.process.getOutputStream());
+        }
+
+        @Override
+        public void endConsole() {
+            this.done = true;
+            if (this.process != null && this.process.isAlive()) {
+                Mod.LOGGER.info("Shell console process ending");
+                this.process.destroy();
+                this.process.destroyForcibly();
+                this.process = null;
+            }
         }
 
         private void copyStream(InputStream in, OutputStream out) {
@@ -65,17 +94,10 @@ public class ShellConsoleBlock extends ConsoleBlock {
                         }
                     }
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    // Process probably ended
+                    this.endConsole();
                 }
             });
-        }
-
-        @Override
-        public void endConsole() {
-            this.done = true;
-            if (this.process != null && this.process.isAlive()) {
-                this.process.destroy();
-            }
         }
     }
 }

@@ -23,6 +23,12 @@ loom {
 
 repositories {
     maven { url 'https://maven.wispforest.io' }
+    maven {
+        url 'https://packages.jetbrains.team/maven/p/ij/intellij-dependencies'
+        content {
+            includeGroup 'org.jetbrains.pty4j'
+        }
+    }
 }
 
 dependencies {
@@ -38,6 +44,9 @@ dependencies {
 
     modImplementation "io.wispforest:owo-lib:${project.owo_version}"
     include "io.wispforest:owo-sentinel:${project.owo_version}"
+
+    implementation "org.jetbrains.pty4j:pty4j:${project.pty4j_version}"
+
 }
 
 processResources {

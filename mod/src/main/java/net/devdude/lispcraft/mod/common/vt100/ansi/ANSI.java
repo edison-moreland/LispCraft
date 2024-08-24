@@ -1,4 +1,4 @@
-package net.devdude.lispcraft.mod.common.vt100;
+package net.devdude.lispcraft.mod.common.vt100.ansi;
 
 public class ANSI {
 

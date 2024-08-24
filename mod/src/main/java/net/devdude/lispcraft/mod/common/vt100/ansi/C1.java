@@ -1,4 +1,4 @@
-package net.devdude.lispcraft.mod.common.vt100;
+package net.devdude.lispcraft.mod.common.vt100.ansi;
 
 public class C1 {
     public static final int PAD = '@';
@@ -33,4 +33,8 @@ public class C1 {
     public static final int OSC = ']';
     public static final int PM = '^';
     public static final int APC = '_';
+
+    //    DEC extensions https://vt100.net/emu/ctrlfunc_dec.html
+    public static final int DECKPAM = '=';
+    public static final int DECKPNM = '>';
 }

@@ -2,7 +2,6 @@ package net.devdude.lispcraft.mod.common.vt100;
 
 import io.wispforest.endec.Endec;
 import io.wispforest.endec.impl.StructEndecBuilder;
-import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
@@ -41,10 +40,14 @@ public class VT100ScreenBuffer implements Cloneable {
         var contents = new Character[size.height()][size.width()];
         for (int y = 0; y < size.height(); y++) {
             for (int x = 0; x < size.width(); x++) {
-                contents[y][x] = new Character(' ', Style.DEFAULT);
+                contents[y][x] = emptyCharacter();
             }
         }
         return contents;
+    }
+
+    private static Character emptyCharacter() {
+        return new Character(' ', Style.DEFAULT);
     }
 
     public Character[][] getContents() {
@@ -55,17 +58,27 @@ public class VT100ScreenBuffer implements Cloneable {
         return this.size;
     }
 
+    public int getWidth() {
+        return this.size.width();
+    }
+
+    public int getHeight() {
+        return this.size.height();
+    }
+
     public Location getCursor() {
         return this.cursor;
     }
 
+    public int getCursorX() {
+        return this.cursor.x();
+    }
+
+    public int getCursorY() {
+        return this.cursor.y();
+    }
+
     public void setCharacter(char codepoint, Style style) {
-        final var random = Random.create();
-
-        var foreground = random.nextInt();
-        var background = ~foreground;
-
-        style = style.withForeground(foreground).withBackground(background);
         contents[cursor.y()][cursor.x()] = new Character(codepoint, style);
     }
 
@@ -85,15 +98,19 @@ public class VT100ScreenBuffer implements Cloneable {
                 contents[y] = emptyLine(size.width());
             }
         }
-        setCursor(cursor.x(), cursor.y() - by);
+        setCursorRelative(0, -by);
     }
 
     private static Character @NotNull [] emptyLine(int width) {
         var contents = new Character[width];
         for (int x = 0; x < width; x++) {
-            contents[x] = new Character(' ', Style.DEFAULT);
+            contents[x] = emptyCharacter();
         }
         return contents;
+    }
+
+    public void setCursorRelative(int x, int y) {
+        setCursor(cursor.x() + x, cursor.y() + y);
     }
 
     public void setCursor(int x, int y) {
@@ -103,8 +120,30 @@ public class VT100ScreenBuffer implements Cloneable {
         cursor = new Location(x, y);
     }
 
-    public void setCursorRelative(int x, int y) {
-        setCursor(cursor.x() + x, cursor.y() + y);
+    // Erase lines from start to end-1
+    public void eraseLines(int start, int end) {
+        if (end < start) {
+            var tmp = end;
+            end = start;
+            start = tmp;
+        }
+
+        for (int y = start; y < end; y++) {
+            this.contents[y] = emptyLine(size.width());
+        }
+    }
+
+    // Erase characters from start to end-1 in the current line
+    public void eraseInLine(int start, int end) {
+        if (end < start) {
+            var tmp = end;
+            end = start;
+            start = tmp;
+        }
+
+        for (int x = start; x < end; x++) {
+            this.contents[this.cursor.y()][x] = emptyCharacter();
+        }
     }
 
     @Override

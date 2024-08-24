@@ -6,12 +6,14 @@ import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
 import net.devdude.lispcraft.mod.client.components.VT100ScreenComponent;
 import net.devdude.lispcraft.mod.common.console.ConsoleScreenHandler;
-import net.devdude.lispcraft.mod.common.vt100.ANSI;
+import net.devdude.lispcraft.mod.common.vt100.ansi.ANSI;
 import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
+
+import java.io.ByteArrayOutputStream;
 
 public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHandlerProvider<ConsoleScreenHandler> {
     private final ConsoleScreenHandler handler;
@@ -50,21 +52,39 @@ public class ConsoleScreen extends BaseOwoScreen<FlowLayout> implements ScreenHa
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        return switch (keyCode) {
-            case GLFW.GLFW_KEY_BACKSPACE -> {
-                getScreenHandler().writeInput(ANSI.BS);
-                yield true;
+        var sequence = new ByteArrayOutputStream();
+        switch (keyCode) {
+            case GLFW.GLFW_KEY_BACKSPACE -> sequence.write(ANSI.BS);
+            case GLFW.GLFW_KEY_TAB -> sequence.write(ANSI.TAB);
+            case GLFW.GLFW_KEY_ENTER -> sequence.write(ANSI.CR);
+            case GLFW.GLFW_KEY_UP -> {
+                sequence.write(ANSI.ESC);
+                sequence.write('A');
             }
-            case GLFW.GLFW_KEY_TAB -> {
-                getScreenHandler().writeInput(ANSI.TAB);
-                yield true;
+            case GLFW.GLFW_KEY_DOWN -> {
+                sequence.write(ANSI.ESC);
+                sequence.write('B');
             }
-            case GLFW.GLFW_KEY_ENTER -> {
-                getScreenHandler().writeInput(ANSI.LF);
-                yield true;
+            case GLFW.GLFW_KEY_RIGHT -> {
+                sequence.write(ANSI.ESC);
+                sequence.write('C');
             }
-            default -> super.keyPressed(keyCode, scanCode, modifiers);
-        };
+            case GLFW.GLFW_KEY_LEFT -> {
+                sequence.write(ANSI.ESC);
+                sequence.write('D');
+            }
+            default -> {
+                if (keyCode == GLFW.GLFW_KEY_ESCAPE && (((modifiers & GLFW.GLFW_MOD_ALT) == GLFW.GLFW_MOD_ALT))) {
+                    sequence.write(ANSI.ESC);
+                    sequence.write(ANSI.ESC);
+                } else {
+                    return super.keyPressed(keyCode, scanCode, modifiers);
+                }
+            }
+        }
+
+        getScreenHandler().writeInput(sequence.toByteArray());
+        return true;
     }
 
     @Override
